@@ -91,7 +91,12 @@ describe("GrammarOverlay accessibility", () => {
 
     overlay.showResult(result([issue(), secondIssue()]));
     expect(shadow.querySelector(".summary-count")?.textContent).toBe("2 improvements");
-    expect(shadow.querySelector(".corrected-preview")?.textContent).toBe("This is a example.");
+    const preview = shadow.querySelector(".corrected-preview")!;
+    const marks = (tag: string): unknown[] =>
+      [...preview.querySelectorAll(tag)].map((mark) => mark.textContent);
+    expect(marks("del")).toEqual(["are", "test"]);
+    expect(marks("ins")).toEqual(["is", "example"]);
+    expect(preview.textContent).toBe("This areis a testexample.");
     expect(shadow.querySelector(".apply-all")?.textContent).toBe("Apply all");
     expect(shadow.querySelector(".apply-all")?.getAttribute("aria-label")).toBe("Accept all");
     expect(shadow.querySelector(".suggestion-card")).toBeNull();
@@ -102,7 +107,7 @@ describe("GrammarOverlay accessibility", () => {
       originalText: "This is a test.",
     });
     expect(shadow.querySelector(".summary-count")?.textContent).toBe("1 improvement");
-    expect(shadow.querySelector(".corrected-preview")?.textContent).toBe("This is a example.");
+    expect(shadow.querySelector(".corrected-preview ins")?.textContent).toBe("example");
   });
 
   test("copies corrected text from results and from an apply error", async () => {

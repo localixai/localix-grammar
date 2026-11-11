@@ -1,7 +1,12 @@
 import { describe, expect, test, vi } from "vitest";
 
+vi.mock("@openrouter/sdk/core.js", () => ({ OpenRouterCore: vi.fn() }));
+vi.mock("@openrouter/sdk/funcs/modelsList.js", () => ({ modelsList: vi.fn() }));
+
+import { modelsList } from "@openrouter/sdk/funcs/modelsList.js";
 import {
   createModelCatalogService,
+  listModels,
   normalizeModelCatalog,
   type CatalogModel,
   type ModelCatalogLoader,
@@ -33,6 +38,40 @@ function catalogModel(
 }
 
 describe("official OpenRouter model catalog", () => {
+  test("reports a failed official catalog request", async () => {
+    vi.mocked(modelsList).mockResolvedValueOnce({
+      ok: false,
+      error: new Error("Catalog unavailable"),
+    } as never);
+
+    await expect(listModels()).rejects.toThrow("Catalog unavailable");
+  });
+
+  test("loads and normalizes the official SDK catalog", async () => {
+    vi.mocked(modelsList).mockResolvedValueOnce({
+      ok: true,
+      value: { result: { data: [catalogModel("vendor/official")] } },
+    } as never);
+
+    await expect(listModels()).resolves.toEqual([
+      {
+        id: "vendor/official",
+        name: "vendor/official",
+        contextWindow: 128_000,
+        inputCostPerMillion: 1,
+        outputCostPerMillion: 2,
+      },
+    ]);
+    expect(modelsList).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        limit: 1_000,
+        outputModalities: "text",
+        supportedParameters: "tools",
+      }),
+    );
+  });
+
   test("keeps tool-capable models, converts pricing, deduplicates, and sorts by name", () => {
     const models = normalizeModelCatalog([
       catalogModel("vendor/zeta", { name: "Zeta", prompt: "0.0000005" }),

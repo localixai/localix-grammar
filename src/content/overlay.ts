@@ -1,5 +1,6 @@
 import type { CheckResult, GrammarError, ThemeMode } from "../shared/types";
 import { correctedText } from "../shared/utils/corrected-text";
+import { renderDiff } from "../shared/utils/diff-segments";
 import { viewportRect, visibleEditorRect } from "./editor-geometry";
 import { isContentEditable, isFramedEditableBody, type SupportedElement } from "./input-detector";
 
@@ -32,9 +33,10 @@ const STYLE = `
     --error: oklch(0.68 0.19 18);
     --warning: oklch(0.8 0.14 80);
     --info: oklch(0.7 0.15 250);
-    --accent: oklch(0.68 0.16 230);
+    --added-bg: oklch(0.74 0.16 155 / .16);
+    --removed-bg: oklch(0.68 0.19 18 / .14);
     --ring: oklch(0.7 0 0);
-    --shadow: 0 12px 32px rgba(0, 0, 0, .44);
+    --shadow: 0 0 0 1px rgba(255, 255, 255, .04), 0 16px 40px rgba(0, 0, 0, .5);
     --radius: 10px;
     --font: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
     all: initial;
@@ -57,8 +59,10 @@ const STYLE = `
     --error: oklch(0.55 0.21 20);
     --warning: oklch(0.54 0.12 75);
     --info: oklch(0.55 0.17 255);
+    --added-bg: oklch(0.51 0.15 155 / .13);
+    --removed-bg: oklch(0.55 0.21 20 / .1);
     --ring: oklch(0.45 0 0);
-    --shadow: 0 0 0 1px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.12);
+    --shadow: 0 0 0 1px rgba(0,0,0,.05), 0 12px 32px rgba(0,0,0,.14);
     color-scheme: light;
   }
   * { box-sizing: border-box; }
@@ -72,22 +76,23 @@ const STYLE = `
     align-items: center;
     justify-content: center;
     border: 1px solid var(--border);
-    border-radius: 7px;
+    border-radius: 8px;
     padding: 0;
     background: var(--background);
     color: var(--text-soft);
     box-shadow: 0 1px 3px rgba(0,0,0,.18);
     cursor: pointer;
     pointer-events: auto;
-    transition: background 150ms, border-color 150ms, color 150ms;
+    transition: background 150ms, border-color 150ms, color 150ms, transform 150ms;
   }
+  .trigger:disabled { cursor: progress; }
   .trigger svg { width: 13px; height: 13px; }
   .trigger:hover {
     border-color: var(--border-strong);
     background: var(--surface-active);
     color: var(--text-strong);
   }
-  .trigger:active { background: var(--surface-hover); }
+  .trigger:active:not(:disabled) { background: var(--surface-hover); transform: scale(.94); }
   .trigger:focus-visible, button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
   .trigger[data-state="issues"] { color: var(--error); }
   .trigger[data-state="clean"] { color: var(--success); }
@@ -97,16 +102,17 @@ const STYLE = `
     position: absolute;
     top: -4px;
     right: -4px;
-    min-width: 13px;
-    height: 13px;
-    padding: 0 3px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3.5px;
     display: none;
     place-items: center;
     border: 1px solid var(--background);
     border-radius: 999px;
     background: var(--error);
     color: white;
-    font: 700 7.5px/1 var(--font);
+    font: 700 8.5px/1 var(--font);
+    font-variant-numeric: tabular-nums;
   }
   .trigger[data-state="issues"] .count { display: grid; }
   .panel {
@@ -160,7 +166,9 @@ const STYLE = `
     background: transparent;
     color: var(--text-faint);
   }
+  .icon-button { font-size: 16px; line-height: 1; transition: background 150ms, color 150ms; }
   .icon-button:hover { background: var(--surface-hover); color: var(--text-strong); }
+  .body, .corrected-preview { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
   .body { overflow-y: auto; }
   .summary { padding: 7px 14px 14px; }
   .summary-head {
@@ -182,14 +190,35 @@ const STYLE = `
     border-radius: 10px;
     background: var(--card);
     color: var(--text-strong);
-    font-size: 12px;
-    line-height: 1.55;
+    font-size: 12.5px;
+    line-height: 1.6;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
+    border: 1px solid var(--border);
   }
+  .corrected-preview del, .corrected-preview ins {
+    padding: 1px 2px;
+    border-radius: 4px;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .corrected-preview del {
+    background: var(--removed-bg);
+    color: var(--error);
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+  }
+  .corrected-preview ins {
+    background: var(--added-bg);
+    color: var(--success);
+    font-weight: 550;
+    text-decoration: none;
+  }
+  .corrected-preview del + ins { margin-left: 2px; }
   .primary { min-height: 38px; padding: 7px 12px; font-size: 11.5px; font-weight: 650; }
-  .primary { background: var(--primary); color: var(--primary-fg); }
-  .primary:hover { opacity: .86; }
+  .primary { background: var(--primary); color: var(--primary-fg); transition: opacity 150ms, transform 150ms; }
+  .primary:hover { opacity: .88; }
+  .primary:active, .secondary:active { transform: scale(.98); }
   .apply-all {
     width: 100%;
     margin-top: 10px;
@@ -218,8 +247,18 @@ const STYLE = `
     color: var(--text-strong);
     cursor: pointer;
     font: 650 11.5px/1 var(--font);
+    transition: background 150ms, border-color 150ms, transform 150ms;
   }
-  .secondary:hover { background: var(--surface-hover); }
+  .secondary:hover { background: var(--surface-hover); border-color: var(--border-strong); }
+  .spinner {
+    width: 22px;
+    height: 22px;
+    margin-bottom: 2px;
+    border: 2px solid var(--border-strong);
+    border-top-color: var(--text-strong);
+    border-radius: 50%;
+    animation: lx-spin .8s linear infinite;
+  }
   .status-view .copy-text { margin-top: 5px; }
   .empty, .status-view { padding: 22px 18px; text-align: center; color: var(--text-soft); overflow-wrap: anywhere; }
   .status-view { display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -467,7 +506,7 @@ export class GrammarOverlay {
     this.setState("checking");
     this.panel.setAttribute("aria-busy", "true");
     this.body.replaceChildren(
-      this.statusView("Checking your writing…", "Usually finishes within 30 seconds"),
+      this.statusView("Checking your writing…", "This usually takes a few seconds", true),
     );
     this.openPanel();
   }
@@ -527,8 +566,9 @@ export class GrammarOverlay {
     const preview = document.createElement("div");
     preview.className = "corrected-preview";
     preview.setAttribute("role", "region");
-    preview.setAttribute("aria-label", "Corrected text preview");
-    preview.textContent = correctedText(result);
+    preview.setAttribute("aria-label", "Suggested changes");
+    preview.tabIndex = 0;
+    preview.append(renderDiff(result, this.panel.ownerDocument));
 
     const actions = document.createElement("div");
     actions.className = "result-actions";
@@ -763,9 +803,15 @@ export class GrammarOverlay {
     this.portalWindow = null;
   }
 
-  private statusView(title: string, detail: string): HTMLElement {
+  private statusView(title: string, detail: string, busy = false): HTMLElement {
     const view = document.createElement("div");
     view.className = "status-view";
+    if (busy) {
+      const spinner = document.createElement("span");
+      spinner.className = "spinner";
+      spinner.setAttribute("aria-hidden", "true");
+      view.append(spinner);
+    }
     const strong = document.createElement("strong");
     strong.textContent = title;
     const text = document.createElement("span");

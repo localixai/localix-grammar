@@ -9,6 +9,7 @@ import type {
 } from "../shared/types";
 import { MAX_CHECK_TEXT_LENGTH } from "../shared/types";
 import { correctedText } from "../shared/utils/corrected-text";
+import { renderDiff } from "../shared/utils/diff-segments";
 import {
   isPendingSelection,
   PENDING_SELECTION_KEY,
@@ -125,6 +126,7 @@ const quickCheckButton = element<HTMLButtonElement>("quickCheckButton");
 const quickCheckCount = element("quickCheckCount");
 const quickCheckStatus = element("quickCheckStatus");
 const quickCheckCopy = element<HTMLButtonElement>("quickCheckCopy");
+const quickCheckDiff = element("quickCheckDiff");
 
 let settings: SettingsView | null = null;
 let hostname: string | null = null;
@@ -159,7 +161,13 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "session") consumeSelection(changes[PENDING_SELECTION_KEY]?.newValue);
 });
 
+function clearQuickCheckDiff(): void {
+  quickCheckDiff.replaceChildren();
+  quickCheckDiff.classList.add("hidden");
+}
+
 function renderQuickCheck(result: CheckResult): void {
+  clearQuickCheckDiff();
   if (result.errors.length === 0) {
     quickCheckStatus.textContent = "No corrections needed";
     return;
@@ -168,6 +176,8 @@ function renderQuickCheck(result: CheckResult): void {
   quickCheckInput.value = corrected;
   quickCheckCount.textContent = `${corrected.length.toLocaleString()} / ${MAX_CHECK_TEXT_LENGTH.toLocaleString()}`;
   quickCheckStatus.textContent = `${result.errors.length} ${result.errors.length === 1 ? "correction" : "corrections"} applied`;
+  quickCheckDiff.append(renderDiff(result, document));
+  quickCheckDiff.classList.remove("hidden");
 }
 
 quickCheckInput.addEventListener("input", () => {
@@ -176,6 +186,7 @@ quickCheckInput.addEventListener("input", () => {
   quickCheckButton.disabled = !hasText;
   quickCheckCopy.disabled = !hasText;
   quickCheckStatus.textContent = "";
+  clearQuickCheckDiff();
   if (quickCheckRequestId) {
     void sendMessage({ type: "CANCEL_CHECK", payload: { requestId: quickCheckRequestId } });
     quickCheckRequestId = null;

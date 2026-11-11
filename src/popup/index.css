@@ -40,6 +40,8 @@
   --text-faint: oklch(0.62 0 0);
   --success: oklch(0.74 0.16 155);
   --error: oklch(0.68 0.19 18);
+  --added-bg: oklch(0.74 0.16 155 / 0.16);
+  --removed-bg: oklch(0.68 0.19 18 / 0.14);
   --ring: oklch(0.7 0 0);
   --radius: 12px;
   color-scheme: dark;
@@ -60,6 +62,8 @@
   --text-faint: oklch(0.45 0 0);
   --success: oklch(0.51 0.15 155);
   --error: oklch(0.55 0.21 20);
+  --added-bg: oklch(0.51 0.15 155 / 0.13);
+  --removed-bg: oklch(0.55 0.21 20 / 0.1);
   --ring: oklch(0.45 0 0);
   color-scheme: light;
 }
@@ -86,6 +90,18 @@ body {
 body {
   max-height: 600px;
   overflow-y: auto;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* No colour transitions: a theme switch would animate every control through low-contrast states. */
+button {
+  transition:
+    opacity 150ms,
+    transform 150ms;
 }
 
 button,
@@ -214,6 +230,9 @@ h1 {
   font-size: 11px;
   font-weight: 600;
 }
+.popup-nav button:hover {
+  color: var(--text-strong);
+}
 .popup-nav button[aria-current="page"] {
   background: var(--surface-active);
   color: var(--text-strong);
@@ -251,8 +270,9 @@ h1 {
 .quick-check-heading span,
 .quick-check-status {
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.45;
+  font-variant-numeric: tabular-nums;
 }
 
 .quick-check textarea {
@@ -267,6 +287,49 @@ h1 {
   background: var(--card);
   color: var(--text-strong);
   line-height: 1.5;
+}
+
+.quick-check textarea:hover {
+  border-color: var(--border-strong);
+}
+
+.quick-check-diff {
+  max-height: 132px;
+  overflow-y: auto;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.quick-check-diff del,
+.quick-check-diff ins {
+  padding: 1px 2px;
+  border-radius: 4px;
+  box-decoration-break: clone;
+}
+
+.quick-check-diff del {
+  background: var(--removed-bg);
+  color: var(--error);
+  text-decoration-thickness: 1px;
+}
+
+.quick-check-diff ins {
+  background: var(--added-bg);
+  color: var(--success);
+  font-weight: 550;
+  text-decoration: none;
+}
+
+.quick-check-diff del + ins {
+  margin-left: 2px;
 }
 
 .quick-check textarea::placeholder {
@@ -296,6 +359,7 @@ h1 {
   background: transparent;
   color: var(--text-soft);
   cursor: pointer;
+  font-size: 11px;
 }
 .quick-check-copy:hover:not(:disabled) {
   color: var(--text-strong);
@@ -408,6 +472,18 @@ h1 {
 .button.primary {
   background: var(--primary);
   color: var(--primary-foreground);
+}
+
+.button.primary:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.button.secondary:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.985);
 }
 
 .button.secondary {
@@ -837,7 +913,8 @@ h1 {
 .model-cost {
   margin-top: 3px;
   color: var(--text-soft);
-  font-size: 9px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 .empty-models {

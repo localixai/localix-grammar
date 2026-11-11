@@ -24,7 +24,7 @@
   "homepage": "https://localix.ai",
   "repository": {
     "type": "git",
-    "url": "https://github.com/localixai/grammar"
+    "url": "https://github.com/rsaryev/llx-grammar"
   },
   "keywords": [
     "grammar",
@@ -38,24 +38,27 @@
     "node": ">=22.19"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
-    "@playwright/test": "^1.63.0",
-    "@types/chrome": "^0.3.0",
-    "@types/node": "^26.6.2",
-    "@typescript-eslint/eslint-plugin": "^8.70.1",
-    "@typescript-eslint/parser": "^8.70.1",
-    "@vitest/coverage-v8": "^5.0.1",
-    "eslint": "^10.11.0",
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.65.0",
+    "@types/chrome": "^0.3.7",
+    "@types/node": "^26.6.6",
+    "@typescript-eslint/eslint-plugin": "^8.72.2",
+    "@typescript-eslint/parser": "^8.72.2",
+    "@vitest/coverage-v8": "^5.1.0",
+    "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
-    "happy-dom": "^20.14.5",
-    "prettier": "^3.9.9",
+    "happy-dom": "^21.0.4",
+    "prettier": "^3.9.10",
     "typescript": "^6.0.3",
-    "vite": "^8.3.0",
-    "vitest": "^5.0.1"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
-    "@openrouter/sdk": "1.3.21",
+    "@openrouter/sdk": "1.5.85",
     "diff": "9.0.0"
+  },
+  "overrides": {
+    "minimatch": "^11.0.8"
   }
 }

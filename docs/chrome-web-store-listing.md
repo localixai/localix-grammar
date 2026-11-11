@@ -115,5 +115,5 @@ blindly.
 ## Support
 
 - Homepage: `https://localix.ai`
-- Source and issues: `https://github.com/localixai/grammar`
+- Source and issues: `https://github.com/rsaryev/llx-grammar`
 - Privacy policy: publish the repository privacy policy at a stable public HTTPS URL

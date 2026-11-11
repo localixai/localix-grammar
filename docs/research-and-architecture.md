@@ -10,7 +10,7 @@ The public repositories below were inspected at the recorded revisions.
 
 | Source                                                                        | Revision reviewed | Relevant evidence                                                                                                                   |
 | ----------------------------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| [OpenRouter TypeScript SDK](https://github.com/OpenRouterTeam/typescript-sdk) | npm `1.3.21`      | Official typed chat, model-catalog and OAuth operations, response validation, retries, timeout, and abort signals                   |
+| [OpenRouter TypeScript SDK](https://github.com/OpenRouterTeam/typescript-sdk) | npm `1.5.85`      | Official typed chat, model-catalog and OAuth operations, response validation, retries, timeout, and abort signals                   |
 | [pi](https://github.com/earendil-works/pi)                                    | `3cd39163cbaa`    | Evaluated agent/runtime abstraction and browser model support; rejected for this product's single constrained inference             |
 | [Harper](https://github.com/Automattic/harper)                                | `cf9ed268391d`    | Browser-extension E2E, iframe handling, one-lint suggestion popover, `beforeinput`, DOM `Range` replacement, selection preservation |
 | [Correctly](https://github.com/iamaamir/Correctly)                            | `922e3f89b8dd`    | Sensitive-field exclusions, debouncing, unchanged-text suppression, stale-generation rejection, dismissible UI                      |
@@ -103,9 +103,30 @@ There is no duplicate raw chat or catalog client and no agent framework. Grammar
 plain JSON Schema tool definition and domain contract because a provider SDK cannot safely mutate
 page DOM. The validator bounds the complete corrected result, rejects unsafe control characters
 and invalid blank output, and never trusts model-authored offsets. The corrected text is converted
-to UTF-16 review spans locally with `diffChars`. The DOM layer
+to UTF-16 review spans locally with `diffChars`, then each span is widened to the whole word it
+touches so a suggestion reads "teh → the" rather than a character fragment. The DOM layer
 additionally rejects spans that cross synthetic block boundaries or nested non-editable nodes, and
 reports partial batch mutations instead of claiming the editor is clean.
+
+### Proofreading request
+
+The request was tuned against live OpenRouter models (Claude Haiku, GPT Luna, DeepSeek Flash) on
+English, Russian, German, mixed-language, casual, code-bearing, multi-line, and prompt-injection
+samples. What the measurements settled:
+
+- The text travels between `<text>` tags, not as a JSON envelope. Models echoed the JSON envelope
+  back as the "corrected text"; the validator still unwraps an echoed envelope or tag pair.
+- `tool_choice`, `temperature`, `provider`, and `reasoning` stay unset. Forcing them fails on models
+  that lack support, and a fixed low reasoning effort made the weakest model miss agreement errors.
+- The output budget is the text length times two plus reasoning headroom. Reasoning tokens count
+  against the same limit, and a thinking model exhausted the previous budget on a 1,000-character
+  text. A truncated reply is retried once with low reasoning effort.
+- A tool call is accepted whatever finish reason accompanies it, because providers report either
+  `tool_calls` or `stop`.
+- A reply less than half or more than twice the size of a text of 40+ characters is rejected: the
+  model answered or rewrote instead of proofreading.
+- The page language is passed only as a regional-spelling hint, since people write in languages
+  other than the page's.
 
 ## Browser/auth boundary
 

@@ -47,15 +47,12 @@ describe("corrected text reports", () => {
     }
 
     expect(applied).toBe(corrected);
-    expect(changes).toHaveLength(3);
-    expect(changes[0]).toMatchObject({
-      original: "helo",
-      replacements: ["Hello,"],
-    });
-    expect(changes[1]).toMatchObject({
-      original: " w",
-      replacements: ["? W"],
-    });
+    expect(changes.map((change) => [change.original, change.replacements[0]])).toEqual([
+      ["helo", "Hello,"],
+      ["", "?"],
+      ["what", "What"],
+      [" ", ""],
+    ]);
     expect(changes.every((change) => change.replacements.length === 1)).toBe(true);
   });
 
@@ -65,16 +62,62 @@ describe("corrected text reports", () => {
     expect(changes).toEqual([
       expect.objectContaining({
         offset: 3,
-        original: "h",
-        replacements: ["H"],
-        shortMessage: "Capitalization",
-      }),
-      expect.objectContaining({
-        offset: 8,
-        original: " ",
-        replacements: [""],
-        shortMessage: "Deletion",
+        length: 6,
+        original: "hello ",
+        replacements: ["Hello"],
+        shortMessage: "Text correction",
       }),
     ]);
+    expect(changesFromTexts("ok ,fine", "ok, fine")[0]).toMatchObject({
+      shortMessage: "Punctuation",
+      type: "punctuation",
+    });
+    expect(changesFromTexts("paris", "Paris")[0]?.shortMessage).toBe("Capitalization");
+  });
+
+  test("reports whole words instead of character fragments", () => {
+    const pairs = (original: string, corrected: string): unknown[] =>
+      changesFromTexts(original, corrected).map((change) => [
+        change.original,
+        change.replacements[0],
+      ]);
+
+    expect(pairs("i has went to teh stroe", "I went to the store")).toEqual([
+      ["i", "I"],
+      ["has ", ""],
+      ["teh", "the"],
+      ["stroe", "store"],
+    ]);
+    expect(pairs("Мне кажеться что надо", "Мне кажется, что надо")).toEqual([
+      ["кажеться", "кажется,"],
+    ]);
+    expect(pairs("He go home", "He goes home")).toEqual([["go", "goes"]]);
+    expect(pairs("alot of time", "a lot of time")).toEqual([["alot", "a lot"]]);
+  });
+
+  test("unwraps an echoed request envelope and keeps edge whitespace", () => {
+    expect(
+      correctedTextFromReport({ correctedText: '{"text":"He goes home"}' }, "He go home"),
+    ).toBe("He goes home");
+    expect(
+      correctedTextFromReport({ correctedText: "<text>He goes home</text>" }, "He go home"),
+    ).toBe("He goes home");
+    expect(correctedTextFromReport({ correctedText: '{"a":1}' }, '{"a":1}')).toBe('{"a":1}');
+    expect(correctedTextFromReport({ correctedText: "He goes home" }, "  He go home\n")).toBe(
+      "  He goes home\n",
+    );
+  });
+
+  test("rejects a reply that answers or rewrites instead of proofreading", () => {
+    const original = "Can you explain how photosynthesis works in plants?";
+    expect(() =>
+      correctedTextFromReport({ correctedText: `${original} `.repeat(3) }, original),
+    ).toThrow("instead of proofreading");
+    expect(() => correctedTextFromReport({ correctedText: "Yes." }, original)).toThrow(
+      "instead of proofreading",
+    );
+    expect(correctedTextFromReport({ correctedText: "Hello, world!" }, "helo")).toBe(
+      "Hello, world!",
+    );
   });
 });

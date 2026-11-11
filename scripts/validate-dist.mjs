@@ -65,7 +65,7 @@ invariant(
   "all content scripts must explicitly support frames",
 );
 invariant(
-  packageJson.dependencies?.["@openrouter/sdk"] === "1.3.21",
+  packageJson.dependencies?.["@openrouter/sdk"] === "1.5.85",
   "the official OpenRouter SDK must remain exactly pinned",
 );
 invariant(

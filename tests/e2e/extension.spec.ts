@@ -34,9 +34,7 @@ function submittedText(requestBody: string): string {
     };
     const content = payload.messages?.find((message) => message.role === "user")?.content;
     if (typeof content !== "string") return "";
-    const jsonLine = content.slice(content.lastIndexOf("\n") + 1);
-    const value = JSON.parse(jsonLine) as { text?: unknown };
-    return typeof value.text === "string" ? value.text : "";
+    return /<text>([\s\S]*)<\/text>$/u.exec(content)?.[1] ?? "";
   } catch {
     return "";
   }
@@ -88,6 +86,8 @@ test.beforeAll(async () => {
       body: JSON.stringify({
         data: {
           allowed_data_regions: [],
+          budgets: [],
+          effective_budget: null,
           byok_usage: 0,
           byok_usage_daily: 0,
           byok_usage_monthly: 0,
@@ -145,6 +145,7 @@ test.beforeAll(async () => {
       supported_parameters: ["tools", "tool_choice", "max_completion_tokens"],
       default_parameters: null,
       supported_voices: null,
+      endpoints: [],
       links: { details: `https://openrouter.ai/${id}` },
     });
     const data = [
@@ -305,7 +306,7 @@ test("runs OpenRouter SDK checks, caches decisions, preserves rich text, and ski
   await expectNoSeriousAccessibilityViolations(page);
   await captureUi(page, testInfo, "grammar-overlay");
   expect(grammarRequestCount).toBe(1);
-  expect(lastGrammarRequest).toContain("The expected language is en.");
+  expect(lastGrammarRequest).toContain('The page declares the language \\"en\\".');
   const requestPayload = JSON.parse(lastGrammarRequest) as {
     model?: unknown;
     stream?: unknown;
@@ -317,9 +318,10 @@ test("runs OpenRouter SDK checks, caches decisions, preserves rich text, and ski
   expect(requestPayload).toMatchObject({
     model: "openai/gpt-5.4-mini",
     stream: false,
-    max_completion_tokens: 2_000,
+    parallel_tool_calls: false,
   });
-  expect(requestPayload).not.toHaveProperty("parallel_tool_calls");
+  expect(requestPayload.max_completion_tokens).toBeGreaterThan(6_000);
+  expect(requestPayload).not.toHaveProperty("reasoning");
   expect(requestPayload).not.toHaveProperty("provider");
   expect(requestPayload.tools?.[0]?.function?.name).toBe("report_corrected_text");
   expect(requestPayload.tools?.[0]?.function?.strict).toBe(true);
@@ -720,10 +722,11 @@ test("applies spelling and punctuation as one complete batch", async ({}, testIn
   const root = page.locator("localix-grammar-root");
   await root.locator(".trigger").click();
 
-  await expect(root.getByText("3 improvements", { exact: true })).toBeVisible();
-  await expect(root.locator(".corrected-preview")).toHaveText(
-    "Hello, how are you? What are you doing?",
-  );
+  await expect(root.getByText("4 improvements", { exact: true })).toBeVisible();
+  await expect(root.locator(".corrected-preview del")).toHaveText(["helo", "what", " "], {
+    useInnerText: false,
+  });
+  await expect(root.locator(".corrected-preview ins")).toHaveText(["Hello,", "?", "What"]);
   await expect(root.locator(".corrected-preview")).toHaveCount(1);
   await expectNoSeriousAccessibilityViolations(page);
   await captureUi(page, testInfo, "grammar-overlay-batch");
@@ -746,7 +749,7 @@ test("applies several changes to a plain contenteditable editor in one edit", as
   await editor.focus();
   const root = page.locator("localix-grammar-root");
   await root.locator(".trigger").click();
-  await expect(root.getByText("3 improvements", { exact: true })).toBeVisible();
+  await expect(root.getByText("4 improvements", { exact: true })).toBeVisible();
   await root.getByRole("button", { name: "Accept all", exact: true }).click();
   await expect(editor).toHaveText("Hello, how are you? What are you doing?");
   await expect(root.locator(".panel")).toBeHidden();
