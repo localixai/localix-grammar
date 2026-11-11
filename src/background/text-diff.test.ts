@@ -93,6 +93,44 @@ describe("corrected text reports", () => {
     ]);
     expect(pairs("He go home", "He goes home")).toEqual([["go", "goes"]]);
     expect(pairs("alot of time", "a lot of time")).toEqual([["alot", "a lot"]]);
+    expect(pairs("it dont work", "it doesn't work")).toEqual([["dont", "doesn't"]]);
+    expect(pairs("recieve teh mesage", "receive the message")).toEqual([
+      ["recieve", "receive"],
+      ["teh", "the"],
+      ["mesage", "message"],
+    ]);
+  });
+
+  test("every derived change set reproduces the corrected text exactly", () => {
+    const cases: Array<[string, string]> = [
+      ["it dont work", "it doesn't work"],
+      ["i has went to teh stroe", "I went to the store"],
+      ["Мне кажеться что надо", "Мне кажется, что надо"],
+      ["a  b ,c", "a b, c"],
+      ["their going tommorow", "They're going tomorrow."],
+      ["x", "completely different"],
+      [
+        "Ich habe ein Buch gelesen das interesant war",
+        "Ich habe ein Buch gelesen, das interessant war",
+      ],
+      ["🙂 hello !", "🙂 Hello!"],
+    ];
+    for (const [original, corrected] of cases) {
+      let applied = original;
+      const changes = changesFromTexts(original, corrected);
+      for (const change of [...changes].sort((a, b) => b.offset - a.offset)) {
+        expect(original.slice(change.offset, change.offset + change.length)).toBe(change.original);
+        applied =
+          applied.slice(0, change.offset) +
+          change.replacements[0]! +
+          applied.slice(change.offset + change.length);
+      }
+      expect(applied).toBe(corrected);
+      const ends = changes.map((change) => change.offset + change.length);
+      changes
+        .slice(1)
+        .forEach((change, index) => expect(change.offset).toBeGreaterThanOrEqual(ends[index]!));
+    }
   });
 
   test("unwraps an echoed request envelope and keeps edge whitespace", () => {

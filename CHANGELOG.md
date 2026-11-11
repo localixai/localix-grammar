@@ -6,6 +6,16 @@ All notable changes to Localix Grammar are documented here.
 
 ### Runtime
 
+- Rewrote the proofreading prompt and send the text inside `<text>` tags; code, URLs, names and
+  informal wording are left alone, and instructions inside the text are proofread, not followed.
+- Suggestions are derived by a word-aligned diff ("teh → the"); changes that meet inside one word
+  become one suggestion.
+- Replies much shorter or longer than the original are rejected; a reply cut off by the output
+  limit is retried once with low reasoning, and the output budget now leaves room for reasoning.
+- The review panel and the popup show corrections as tracked changes.
+- Updated every dependency, including `@openrouter/sdk` 1.5.85, ESLint 10, Vite 8 and Vitest 5.
+- Added `npm run screenshots`: README and store images captured from the production build, and an
+  optional pre-commit hook (`npm run hooks`) that refreshes them when the interface changes.
 - Removed forced `tool_choice` because some tool-capable OpenRouter endpoints reject it; one strict
   report tool remains and its returned call is still validated exactly.
 - Removed model-specific provider-routing overrides so OpenRouter can select endpoints using the

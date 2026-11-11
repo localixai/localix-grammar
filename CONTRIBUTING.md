@@ -56,6 +56,8 @@ Keep these invariants intact:
 - Add or update Playwright when a change touches the manifest, service worker, OpenRouter SDK path,
   content-script isolation, popup, or cross-context messaging.
 - Keep the axe WCAG A/AA checks free of serious and critical violations.
+- Run `npm run screenshots` when a change alters the popup or the overlay, and commit the refreshed
+  images; `npm run hooks` enables a pre-commit hook that does it for you.
 - Run `LOCALIX_CAPTURE_UI=1 npm run test:e2e` when changing popup or overlay visuals and inspect the
   attached screenshots in `test-results/`.
 - Test both success and rejection paths for anything that processes provider output or credentials.

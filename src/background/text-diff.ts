@@ -116,47 +116,71 @@ function rawSpans(originalText: string, correctedText: string): Span[] {
   return spans;
 }
 
-/**
- * Grow a character-level change to the whole word it touches, so a suggestion reads as
- * "teh → the" instead of "eh → he". Punctuation and spacing next to a word stay minimal.
- */
-function alignToWords(span: Span, originalText: string, correctedText: string): void {
+/** Whether the change begins and ends inside a word, and so should grow to cover it. */
+function wordEdges(
+  span: Span,
+  originalText: string,
+  correctedText: string,
+): { start: boolean; end: boolean } {
   const original = originalText.slice(span.originalStart, span.originalEnd);
   const corrected = correctedText.slice(span.correctedStart, span.correctedEnd);
-  const joinsOrSplitsWords =
+  // A space added or removed between letters joins or splits words: show both sides.
+  if (
     (original + corrected).trim() === "" &&
     isWordCharacter(originalText, span.originalStart - 1) &&
-    isWordCharacter(originalText, span.originalEnd);
-  const startsInWord =
-    joinsOrSplitsWords || isWordCharacter(original, 0) || isWordCharacter(corrected, 0);
-  const endsInWord =
-    joinsOrSplitsWords ||
-    isWordCharacter(original, original.length - 1) ||
-    isWordCharacter(corrected, corrected.length - 1);
-  while (startsInWord && isWordCharacter(originalText, span.originalStart - 1)) {
-    span.originalStart -= 1;
-    span.correctedStart -= 1;
+    isWordCharacter(originalText, span.originalEnd)
+  ) {
+    return { start: true, end: true };
   }
-  while (endsInWord && isWordCharacter(originalText, span.originalEnd)) {
-    span.originalEnd += 1;
-    span.correctedEnd += 1;
-  }
+  return {
+    start: isWordCharacter(original, 0) || isWordCharacter(corrected, 0),
+    end:
+      isWordCharacter(original, original.length - 1) ||
+      isWordCharacter(corrected, corrected.length - 1),
+  };
+}
+
+/**
+ * Grow character-level changes to the whole words they touch, so a suggestion reads
+ * "teh → the" instead of "eh → he". Punctuation and spacing next to a word stay minimal.
+ * Growth only crosses unchanged text, where both sides advance in step; changes that meet
+ * inside one word ("dont → doesn't") become a single suggestion.
+ */
+function wordAlignedSpans(originalText: string, correctedText: string): Span[] {
+  const raw = rawSpans(originalText, correctedText);
+  const aligned: Span[] = [];
+  raw.forEach((next, index) => {
+    const previous = aligned.at(-1);
+    let unchangedBefore = next.originalStart - (previous?.originalEnd ?? 0);
+    if (wordEdges(next, originalText, correctedText).start) {
+      while (unchangedBefore > 0 && isWordCharacter(originalText, next.originalStart - 1)) {
+        next.originalStart -= 1;
+        next.correctedStart -= 1;
+        unchangedBefore -= 1;
+      }
+    }
+    let span = next;
+    if (previous && unchangedBefore === 0) {
+      previous.originalEnd = next.originalEnd;
+      previous.correctedEnd = next.correctedEnd;
+      span = previous;
+    } else {
+      aligned.push(next);
+    }
+    let unchangedAfter = (raw[index + 1]?.originalStart ?? originalText.length) - span.originalEnd;
+    if (wordEdges(span, originalText, correctedText).end) {
+      while (unchangedAfter > 0 && isWordCharacter(originalText, span.originalEnd)) {
+        span.originalEnd += 1;
+        span.correctedEnd += 1;
+        unchangedAfter -= 1;
+      }
+    }
+  });
+  return aligned;
 }
 
 export function changesFromTexts(originalText: string, correctedText: string): GrammarError[] {
-  const merged: Span[] = [];
-  for (const span of rawSpans(originalText, correctedText)) {
-    alignToWords(span, originalText, correctedText);
-    const previous = merged.at(-1);
-    // Word alignment makes edits inside one word overlap; touching edits (a word and the
-    // comma inserted after it) also read better as one suggestion.
-    if (previous && span.originalStart <= previous.originalEnd) {
-      previous.originalEnd = Math.max(previous.originalEnd, span.originalEnd);
-      previous.correctedEnd = Math.max(previous.correctedEnd, span.correctedEnd);
-    } else {
-      merged.push(span);
-    }
-  }
+  const merged = wordAlignedSpans(originalText, correctedText);
 
   const changes: GrammarError[] = [];
   for (const span of merged) {

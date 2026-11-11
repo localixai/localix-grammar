@@ -1,0 +1,18 @@
+#!/bin/sh
+# Refreshes README and store screenshots when a commit changes what they show.
+# Enable once per clone with: npm run hooks.  Skip one commit with: SKIP_SCREENSHOTS=1 git commit …
+[ "${SKIP_SCREENSHOTS:-0}" = "1" ] && exit 0
+
+if ! git diff --cached --name-only --diff-filter=ACMR | grep -qE \
+  '^(src/(popup|content|shared)/|src/background/text-diff\.ts$|public/|tests/fixtures/|scripts/capture-screenshots\.mjs$)'
+then
+  exit 0
+fi
+
+echo "pre-commit: the UI changed, refreshing screenshots (SKIP_SCREENSHOTS=1 to skip)…"
+if ! npm run --silent screenshots >/dev/null; then
+  echo "pre-commit: could not refresh screenshots. Run 'npm run screenshots' to see why." >&2
+  echo "pre-commit: missing browser? Run 'npx playwright install chromium'." >&2
+  exit 1
+fi
+git add docs/assets store-assets/screenshots store-assets/chrome-web-store-screenshots.zip

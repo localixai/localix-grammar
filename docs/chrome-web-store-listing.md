@@ -98,19 +98,18 @@ and send user-requested grammar checks. Background network access is restricted 
 - Confirm the Limited Use declaration and prominent pre-OAuth disclosure against the current
   Chrome Web Store dashboard form.
 
-## Suggested screenshots and captions
+## Screenshots and captions
 
-1. **Review writing in place** — issue panel next to a rich-text editor with one clear replacement.
-2. **Keep formatting intact** — before/after correction showing preserved emphasis and links.
-3. **Choose your model** — searchable live OpenRouter model catalog.
-4. **Control where checks run** — global, automatic, and current-site settings.
-5. **Your writing boundary** — privacy panel explaining excluded sensitive fields and local key
-   storage.
+`npm run screenshots` captures these from the production build at 1280×800, with fixed model
+responses, into `store-assets/screenshots/` and `store-assets/chrome-web-store-screenshots.zip`.
 
-Store screenshots should use current production UI, contain no real personal writing or API keys,
-and use Chrome Web Store's documented 1280×800 or 640×400 full-bleed dimensions. The automated
-overlay captures use 1280×800; inspect and select them rather than publishing a test artifact
-blindly.
+1. **Review writing in place** (`01-review-in-place.jpg`): tracked changes beside a web editor.
+2. **Check any text** (`02-check-any-text.jpg`): the popup checking pasted text.
+3. **Control where checks run** (`03-settings.jpg`): account, automatic checks, per-site pause.
+4. **Choose your model** (`04-choose-your-model.jpg`): the searchable OpenRouter model list.
+5. **Connect in one step** (`05-connect-openrouter.jpg`): OpenRouter sign-in or an API key.
+
+The images contain no personal writing and no API key. Look at them before uploading.
 
 ## Support
 
