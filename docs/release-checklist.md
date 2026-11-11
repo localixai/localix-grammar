@@ -5,8 +5,8 @@
 - [ ] The release still has one grammar-assistant purpose.
 - [ ] Supported and intentionally unsupported editors are documented.
 - [ ] Sensitive-field exclusions have regression coverage.
-- [ ] A fresh install has no selected model, clearly asks for one, and sends no check until the
-      user explicitly selects a tool-capable catalog entry.
+- [ ] A fresh install uses `~anthropic/claude-haiku-latest`, shows it in Settings, and the alias
+      still resolves in the OpenRouter catalog.
 - [ ] Any `@openrouter/sdk` update was reviewed against its generated schemas, browser bundle,
       changelog, and the chat/models/OAuth contract tests.
 

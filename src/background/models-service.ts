@@ -2,6 +2,7 @@ import { OpenRouterCore } from "@openrouter/sdk/core.js";
 import { modelsList } from "@openrouter/sdk/funcs/modelsList.js";
 
 import type { ModelInfo } from "../shared/types";
+import { openRouterErrorMessage } from "../shared/utils/openrouter-error";
 import { OPENROUTER_APP } from "../shared/utils/openrouter-app";
 
 const MODEL_CACHE_TTL_MS = 15 * 60 * 1_000;
@@ -90,33 +91,70 @@ async function loadOfficialCatalog(): Promise<readonly CatalogModel[]> {
     supportedParameters: "tools",
   });
   if (!result.ok) {
-    const message =
-      result.error instanceof Error && result.error.message
-        ? result.error.message
-        : "OpenRouter model catalog request failed.";
-    throw new Error(message);
+    throw new Error(
+      openRouterErrorMessage(result.error, "Could not load the OpenRouter model list."),
+    );
   }
   return result.value.result.data;
+}
+
+interface StoredCatalog {
+  readonly models: ModelInfo[];
+  readonly expiresAt: number;
+}
+
+/** Where the catalog outlives the service worker, which sleeps after about 30 idle seconds. */
+export interface ModelCatalogStore {
+  read(): Promise<unknown>;
+  write(catalog: StoredCatalog): Promise<void>;
+}
+
+function storedCatalog(value: unknown): StoredCatalog | null {
+  if (!value || typeof value !== "object") return null;
+  const { models, expiresAt } = value as Partial<StoredCatalog>;
+  return Array.isArray(models) && models.length > 0 && typeof expiresAt === "number"
+    ? { models, expiresAt }
+    : null;
 }
 
 export function createModelCatalogService(
   loader: ModelCatalogLoader,
   now: () => number = Date.now,
+  store?: ModelCatalogStore,
 ): () => Promise<ModelInfo[]> {
   let cached: ModelInfo[] | undefined;
   let expiresAt = 0;
-  return async (): Promise<ModelInfo[]> => {
-    if (cached && now() < expiresAt) return cached.map((model) => ({ ...model }));
+  let loading: Promise<void> | undefined;
+  const refresh = async (): Promise<void> => {
+    if (!cached && store) {
+      const stored = storedCatalog(await store.read().catch(() => null));
+      if (stored) ({ models: cached, expiresAt } = stored);
+    }
+    if (cached && now() < expiresAt) return;
     try {
       const fresh = normalizeModelCatalog(await loader());
       if (fresh.length === 0) throw new Error("OpenRouter returned no tool-capable models.");
       cached = fresh;
       expiresAt = now() + MODEL_CACHE_TTL_MS;
+      await store?.write({ models: fresh, expiresAt }).catch(() => undefined);
     } catch (error) {
+      // A stale list still lets people pick a model.
       if (!cached) throw error;
     }
-    return cached.map((model) => ({ ...model }));
+  };
+  return async (): Promise<ModelInfo[]> => {
+    if (!cached || now() >= expiresAt) {
+      // Concurrent callers share one request.
+      loading ??= refresh().finally(() => (loading = undefined));
+      await loading;
+    }
+    return cached!.map((model) => ({ ...model }));
   };
 }
 
-export const listModels = createModelCatalogService(loadOfficialCatalog);
+const CATALOG_STORAGE_KEY = "modelCatalog";
+
+export const listModels = createModelCatalogService(loadOfficialCatalog, Date.now, {
+  read: async () => (await chrome.storage.session.get(CATALOG_STORAGE_KEY))[CATALOG_STORAGE_KEY],
+  write: async (catalog) => chrome.storage.session.set({ [CATALOG_STORAGE_KEY]: catalog }),
+});

@@ -58,8 +58,8 @@
   --surface-hover: oklch(0.945 0 0);
   --surface-active: oklch(0.915 0 0);
   --text-strong: oklch(0.24 0 0);
-  --text-soft: oklch(0.47 0 0);
-  --text-faint: oklch(0.45 0 0);
+  --text-soft: oklch(0.42 0 0);
+  --text-faint: oklch(0.5 0 0);
   --success: oklch(0.51 0.15 155);
   --error: oklch(0.55 0.21 20);
   --added-bg: oklch(0.51 0.15 155 / 0.13);
@@ -385,6 +385,22 @@ h1 {
   font-size: 11px;
   line-height: 1.4;
   overflow-wrap: anywhere;
+  /* Short enough that it never hides the whole view; a click dismisses it. */
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  cursor: pointer;
+}
+.popup-alert.hidden {
+  display: none;
+}
+#quickCheckCount.over-limit {
+  color: var(--error);
+}
+/* The list scrolls, so an outline drawn outside an item would be clipped at its edges. */
+.model-item:focus-visible {
+  outline-offset: -2px;
 }
 
 .status-view {

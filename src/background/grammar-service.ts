@@ -4,6 +4,7 @@ import type { ChatRequest, ChatResult } from "@openrouter/sdk/models";
 
 import { MAX_CHECK_TEXT_LENGTH, type CheckRequest, type CheckResult } from "../shared/types";
 import { OPENROUTER_APP } from "../shared/utils/openrouter-app";
+import { OpenRouterRequestError } from "../shared/utils/openrouter-error";
 import { changesFromTexts, correctedTextFromReport } from "./text-diff";
 
 const REPORT_TOOL_NAME = "report_corrected_text";
@@ -101,14 +102,8 @@ function reportFromCompletion(completion: ChatResult): unknown {
   }
 }
 
-function sdkErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) return error.message;
-  if (error && typeof error === "object" && "message" in error) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message) return message;
-  }
-  return "OpenRouter request failed.";
-}
+/** One check, retries and the truncation retry included, never outlives this. */
+export const CHECK_DEADLINE_MS = 60_000;
 
 function openRouterSender(apiKey: string): GrammarCompletionSender {
   const client = new OpenRouterCore({
@@ -124,7 +119,7 @@ function openRouterSender(apiKey: string): GrammarCompletionSender {
       },
       retryConnectionErrors: true,
     },
-    timeoutMs: 45_000,
+    timeoutMs: 40_000,
   });
   return async (request, signal): Promise<ChatResult> => {
     const result = await chatSend(
@@ -132,7 +127,9 @@ function openRouterSender(apiKey: string): GrammarCompletionSender {
       { chatRequest: request },
       signal ? { signal } : undefined,
     );
-    if (!result.ok) throw new Error(sdkErrorMessage(result.error));
+    if (!result.ok) {
+      throw new OpenRouterRequestError(result.error, "OpenRouter could not run this check.");
+    }
     if (!("choices" in result.value)) {
       throw new Error("OpenRouter unexpectedly returned a streaming response.");
     }
@@ -175,6 +172,9 @@ export async function checkGrammarWithSender(
     ],
     tools: [grammarReportTool],
     parallelToolCalls: false,
+    // Measured on live models: small models skip thinking by default and then miss agreement
+    // and comma errors. Asking for it costs no measurable latency on short texts.
+    reasoning: { effort: "high" },
     maxCompletionTokens: completionTokenBudget(text.length),
     sessionId: request.requestId,
     stream: false,
@@ -184,18 +184,26 @@ export async function checkGrammarWithSender(
   try {
     report = reportFromCompletion(await send(chatRequest, signal));
   } catch (error) {
-    if (!(error instanceof TruncatedReportError)) throw error;
-    // Reasoning consumed the whole budget. Ask once more with thinking kept short.
-    report = reportFromCompletion(
-      await send(
-        {
-          ...chatRequest,
-          reasoning: { effort: "low" },
-          maxCompletionTokens: MAX_COMPLETION_TOKENS,
-        },
-        signal,
-      ),
-    );
+    if (error instanceof TruncatedReportError) {
+      // Reasoning consumed the whole budget. Ask once more with thinking kept short.
+      report = reportFromCompletion(
+        await send(
+          {
+            ...chatRequest,
+            reasoning: { effort: "low" },
+            maxCompletionTokens: MAX_COMPLETION_TOKENS,
+          },
+          signal,
+        ),
+      );
+    } else if (error instanceof OpenRouterRequestError && error.statusCode === 400) {
+      // Some endpoints reject a reasoning setting outright. The check matters more than it.
+      const plainRequest = { ...chatRequest };
+      delete plainRequest.reasoning;
+      report = reportFromCompletion(await send(plainRequest, signal));
+    } else {
+      throw error;
+    }
   }
 
   const correctedText = correctedTextFromReport(report, text);
@@ -212,5 +220,11 @@ export function checkGrammar(
   modelId: string,
   signal?: AbortSignal,
 ): Promise<CheckResult> {
-  return checkGrammarWithSender(request, modelId, openRouterSender(apiKey), signal);
+  const deadline = AbortSignal.timeout(CHECK_DEADLINE_MS);
+  return checkGrammarWithSender(
+    request,
+    modelId,
+    openRouterSender(apiKey),
+    signal ? AbortSignal.any([signal, deadline]) : deadline,
+  );
 }

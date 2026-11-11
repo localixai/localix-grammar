@@ -61,7 +61,9 @@ describe("OpenRouter grammar integration", () => {
     expect(result.errors).toEqual([]);
     const call = vi.mocked(chatSend).mock.calls[0];
     expect(call?.[1].chatRequest.model).toBe("grammar-test");
-    expect(call?.[2]).toEqual({ signal });
+    // The caller's signal is combined with the check's own deadline.
+    expect(call?.[2]?.signal).toBeInstanceOf(AbortSignal);
+    expect(call?.[2]?.signal?.aborted).toBe(false);
   });
 
   test("surfaces SDK errors and rejects unexpected streaming results", async () => {
@@ -84,7 +86,7 @@ describe("OpenRouter grammar integration", () => {
 
     await expect(
       checkGrammar({ requestId: "sdk-unstructured-error", text: "Check me." }, "key", "model"),
-    ).rejects.toThrow("OpenRouter request failed.");
+    ).rejects.toThrow("OpenRouter could not run this check.");
   });
 
   test("sends one strict corrected-text request and derives local changes", async () => {
@@ -115,7 +117,8 @@ describe("OpenRouter grammar integration", () => {
       // Left to the model and to OpenRouter: forcing them breaks models that lack support.
       expect(request.toolChoice).toBeUndefined();
       expect(request.provider).toBeUndefined();
-      expect(request.reasoning).toBeUndefined();
+      // Measured: small models skip thinking by default and miss agreement and comma errors.
+      expect(request.reasoning).toEqual({ effort: "high" });
       expect(request.temperature).toBeUndefined();
       return Promise.resolve(completion({ correctedText: "He goes home" }));
     });
@@ -280,5 +283,38 @@ describe("OpenRouter grammar integration", () => {
     const hinted = send.mock.calls[1]?.[0].messages[1]?.content;
     expect(hinted).toContain('The page declares the language "en-GB".');
     expect(hinted).toContain(`<text>${text}</text>`);
+  });
+
+  test("retries without the reasoning setting when an endpoint rejects the request", async () => {
+    const { OpenRouterRequestError } = await import("../shared/utils/openrouter-error");
+    const send = vi
+      .fn<GrammarCompletionSender>()
+      .mockRejectedValueOnce(
+        new OpenRouterRequestError(Object.assign(new Error("bad"), { statusCode: 400 }), "x"),
+      )
+      .mockResolvedValueOnce(completion({ correctedText: "He goes home" }));
+
+    const result = await checkGrammarWithSender(
+      { requestId: "request-400", text: "He go home" },
+      "grammar-test",
+      send,
+    );
+
+    expect(result.errors).toHaveLength(1);
+    expect(send.mock.calls[0]?.[0].reasoning).toEqual({ effort: "high" });
+    expect(send.mock.calls[1]?.[0].reasoning).toBeUndefined();
+  });
+
+  test("does not retry other failures", async () => {
+    const { OpenRouterRequestError } = await import("../shared/utils/openrouter-error");
+    const send = vi
+      .fn<GrammarCompletionSender>()
+      .mockRejectedValue(
+        new OpenRouterRequestError(Object.assign(new Error("x"), { statusCode: 402 }), "x"),
+      );
+    await expect(
+      checkGrammarWithSender({ requestId: "request-402", text: "He go home" }, "m", send),
+    ).rejects.toThrow();
+    expect(send).toHaveBeenCalledTimes(1);
   });
 });

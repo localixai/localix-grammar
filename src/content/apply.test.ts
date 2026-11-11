@@ -5,6 +5,7 @@ import {
   applyAllReplacements,
   applyReplacement,
   getElementText,
+  hasBlankLines,
   mapEditableText,
   replaceWholeEditableText,
 } from "./apply";
@@ -327,5 +328,32 @@ describe("contenteditable", () => {
 
     expect(result).toEqual({ applied: true, complete: false, text: "good @teh" });
     expect(editor.querySelector('[contenteditable="false"]')?.textContent).toBe("@teh");
+  });
+});
+
+describe("blank lines", () => {
+  function editor(html: string): HTMLElement {
+    const element = document.createElement("div");
+    element.contentEditable = "true";
+    element.innerHTML = html;
+    document.body.append(element);
+    return element;
+  }
+
+  test("finds empty paragraphs and doubled line breaks", () => {
+    expect(hasBlankLines(editor("<div>a</div><div><br></div><div>b</div>"))).toBe(true);
+    expect(hasBlankLines(editor("a<br><br>b"))).toBe(true);
+    expect(hasBlankLines(editor("<p>a</p><p> </p><p>b</p>"))).toBe(true);
+    expect(hasBlankLines(editor("<div>a</div><div>b</div>"))).toBe(false);
+    expect(hasBlankLines(editor("a<br>b"))).toBe(false);
+  });
+
+  test("refuses a whole-text replacement that would delete a blank line", () => {
+    const element = editor("<div>teh a</div><div><br></div><div>teh b</div>");
+    const execCommand = vi.fn(() => true);
+    element.ownerDocument.execCommand = execCommand;
+    expect(replaceWholeEditableText(element, "the a\nthe b").applied).toBe(false);
+    expect(execCommand).not.toHaveBeenCalled();
+    expect(element.querySelectorAll("div")).toHaveLength(3);
   });
 });

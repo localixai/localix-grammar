@@ -85,14 +85,14 @@ const STYLE = `
     pointer-events: auto;
     transition: background 150ms, border-color 150ms, color 150ms, transform 150ms;
   }
-  .trigger:disabled { cursor: progress; }
+  .trigger[aria-disabled="true"] { cursor: progress; }
   .trigger svg { width: 13px; height: 13px; }
   .trigger:hover {
     border-color: var(--border-strong);
     background: var(--surface-active);
     color: var(--text-strong);
   }
-  .trigger:active:not(:disabled) { background: var(--surface-hover); transform: scale(.94); }
+  .trigger:active:not([aria-disabled="true"]) { background: var(--surface-hover); transform: scale(.94); }
   .trigger:focus-visible, button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
   .trigger[data-state="issues"] { color: var(--error); }
   .trigger[data-state="clean"] { color: var(--success); }
@@ -183,6 +183,7 @@ const STYLE = `
     font-weight: 600;
   }
   .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--error); }
+  .corrected-preview:focus-visible { outline: 2px solid var(--ring, currentColor); outline-offset: 2px; }
   .corrected-preview {
     max-height: 152px;
     overflow-y: auto;
@@ -352,7 +353,10 @@ export class GrammarOverlay {
   private readonly onColorSchemeChange = (): void => {
     if (this.theme === "system") this.applyResolvedTheme();
   };
-  private readonly onPageHide = (): void => this.destroy();
+  private readonly onPageHide = (event: PageTransitionEvent): void => {
+    // A page kept in the back-forward cache comes back with its session still running.
+    if (!event.persisted) this.destroy();
+  };
   private readonly onWindowPointerDown = (event: PointerEvent): void => {
     const path = event.composedPath();
     if (!this.isOwnPath(path) || !event.isTrusted) return;
@@ -362,7 +366,11 @@ export class GrammarOverlay {
   };
   private readonly onWindowPointerUp = (event: PointerEvent): void => {
     const path = event.composedPath();
-    if (!this.isOwnPath(path) || !event.isTrusted) return;
+    if (!this.isOwnPath(path) || !event.isTrusted || event.type === "pointercancel") {
+      // A press that began on the overlay and ended elsewhere is over all the same.
+      this.pointerInteraction = false;
+      return;
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
     queueMicrotask(() => {
@@ -382,7 +390,7 @@ export class GrammarOverlay {
         "tagName" in value &&
         value.tagName === "BUTTON",
     );
-    if (!target || target.disabled) return;
+    if (!target || target.disabled || target.getAttribute("aria-disabled") === "true") return;
     pointerActions.get(target)?.();
   };
 
@@ -427,7 +435,6 @@ export class GrammarOverlay {
     this.panel.className = "panel";
     this.panel.setAttribute("role", "dialog");
     this.panel.setAttribute("aria-labelledby", "localix-grammar-title");
-    this.panel.setAttribute("aria-live", "polite");
     this.panel.addEventListener("pointerdown", preserveEditorInteraction);
     this.panel.addEventListener("mousedown", preserveEditorInteraction);
     this.panel.addEventListener("click", (event) => event.stopPropagation());
@@ -454,6 +461,7 @@ export class GrammarOverlay {
     document.documentElement.appendChild(this.host);
     window.addEventListener("pointerdown", this.onWindowPointerDown, true);
     window.addEventListener("pointerup", this.onWindowPointerUp, true);
+    window.addEventListener("pointercancel", this.onWindowPointerUp, true);
     window.addEventListener("click", this.onWindowClick, true);
     window.addEventListener("pagehide", this.onPageHide);
     this.colorScheme.addEventListener("change", this.onColorSchemeChange);
@@ -490,7 +498,8 @@ export class GrammarOverlay {
     this.trigger.firstChild?.remove();
     this.trigger.insertAdjacentHTML("afterbegin", ICONS[state]);
     this.count.textContent = issueCount > 99 ? "99+" : String(issueCount);
-    this.trigger.disabled = state === "checking";
+    // Not `disabled`: that would drop keyboard focus from the button in the middle of a check.
+    this.trigger.setAttribute("aria-disabled", String(state === "checking"));
     this.trigger.setAttribute(
       "aria-label",
       state === "issues"
@@ -501,17 +510,26 @@ export class GrammarOverlay {
     );
   }
 
-  showChecking(): void {
+  /** The panel opens when asked to, and is refreshed in place when it is already open. */
+  private reveal(open: boolean): void {
+    if (open || this.panelOpen) this.openPanel();
+  }
+
+  isPanelOpen(): boolean {
+    return this.panelOpen;
+  }
+
+  showChecking(open = true): void {
     this.panelTitle.textContent = "Checking text";
     this.setState("checking");
     this.panel.setAttribute("aria-busy", "true");
     this.body.replaceChildren(
       this.statusView("Checking your writing…", "This usually takes a few seconds", true),
     );
-    this.openPanel();
+    this.reveal(open);
   }
 
-  showError(message: string, corrected?: string): void {
+  showError(message: string, corrected?: string, open = true): void {
     this.panelTitle.textContent = "Localix Grammar";
     this.setState("error");
     this.panel.setAttribute("aria-busy", "false");
@@ -523,15 +541,15 @@ export class GrammarOverlay {
     if (corrected) view.classList.add("apply-error");
     if (corrected) view.appendChild(this.copyButton(corrected));
     this.body.replaceChildren(view);
-    this.openPanel();
+    this.reveal(open);
   }
 
-  showResult(result: CheckResult): void {
+  showResult(result: CheckResult, open = true): void {
     const restoreFocus = this.panelHasFocus();
-    this.renderResult(result, restoreFocus);
+    this.renderResult(result, restoreFocus, open);
   }
 
-  private renderResult(result: CheckResult, restoreFocus: boolean): void {
+  private renderResult(result: CheckResult, restoreFocus: boolean, open: boolean): void {
     this.panelTitle.textContent = "Suggested text";
     this.setState(result.errors.length > 0 ? "issues" : "clean", result.errors.length);
     this.panel.setAttribute("aria-busy", "false");
@@ -545,7 +563,7 @@ export class GrammarOverlay {
       text.textContent = "No clear issues found";
       empty.appendChild(text);
       this.body.appendChild(empty);
-      this.openPanel();
+      this.reveal(open);
       if (restoreFocus) this.trigger.focus({ preventScroll: true });
       return;
     }
@@ -586,7 +604,7 @@ export class GrammarOverlay {
       summary.append(summaryHead, preview, actions);
     }
     this.body.appendChild(summary);
-    this.openPanel();
+    this.reveal(open);
     if (restoreFocus) {
       this.panel
         .querySelector<HTMLButtonElement>(".apply-all, .copy-text")
@@ -606,6 +624,8 @@ export class GrammarOverlay {
           } catch {
             copy.textContent = "Copy failed";
           }
+          // The fixed name would hide the outcome from a screen reader.
+          copy.setAttribute("aria-label", copy.textContent);
         })();
       },
     );
@@ -706,6 +726,7 @@ export class GrammarOverlay {
     this.detachPortal();
     window.removeEventListener("pointerdown", this.onWindowPointerDown, true);
     window.removeEventListener("pointerup", this.onWindowPointerUp, true);
+    window.removeEventListener("pointercancel", this.onWindowPointerUp, true);
     window.removeEventListener("click", this.onWindowClick, true);
     window.removeEventListener("pagehide", this.onPageHide);
     this.colorScheme.removeEventListener("change", this.onColorSchemeChange);

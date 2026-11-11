@@ -187,4 +187,32 @@ describe("official OpenRouter model catalog", () => {
     const list = createModelCatalogService(() => Promise.resolve([]));
     await expect(list()).rejects.toThrow("no tool-capable models");
   });
+
+  test("keeps the catalog across service worker restarts and shares one request", async () => {
+    let saved: unknown;
+    const store = {
+      read: (): Promise<unknown> => Promise.resolve(saved),
+      write: (catalog: unknown): Promise<void> => {
+        saved = catalog;
+        return Promise.resolve();
+      },
+    };
+    const loader = vi.fn(() => Promise.resolve([catalogModel("vendor/kept")]));
+    let time = 1_000;
+    const first = createModelCatalogService(loader, () => time, store);
+    const [a, b] = await Promise.all([first(), first()]);
+    expect(a).toEqual(b);
+    expect(loader).toHaveBeenCalledTimes(1);
+
+    // A new worker has no memory, and reads the stored catalog instead of the network.
+    const restarted = createModelCatalogService(loader, () => time, store);
+    await expect(restarted()).resolves.toHaveLength(1);
+    expect(loader).toHaveBeenCalledTimes(1);
+
+    // Once it expires the network is asked again; a failure then falls back to the stale list.
+    time += 60 * 60 * 1_000;
+    loader.mockRejectedValueOnce(new Error("offline"));
+    await expect(restarted()).resolves.toHaveLength(1);
+    expect(loader).toHaveBeenCalledTimes(2);
+  });
 });

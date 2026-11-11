@@ -452,6 +452,28 @@ export function applyReplacement(
 }
 
 /** Use a single native edit for plain rich-editor surfaces that reject incremental changes. */
+/**
+ * Whether the editor holds a blank line. The text map collapses consecutive line breaks, so
+ * replacing the whole text of such an editor would silently delete its empty paragraphs.
+ */
+export function hasBlankLines(root: HTMLElement): boolean {
+  const significant = (node: Node | null, forward: boolean): Node | null => {
+    while (node instanceof Text && !node.data.trim()) {
+      node = forward ? node.nextSibling : node.previousSibling;
+    }
+    return node;
+  };
+  for (const element of root.querySelectorAll("*")) {
+    if (element.tagName === "BR") {
+      const next = significant(element.nextSibling, true);
+      if (next instanceof Element && next.tagName === "BR") return true;
+    } else if (BLOCK_TAGS.has(element.tagName) && !element.textContent?.trim()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function replaceWholeEditableText(
   element: SupportedElement,
   replacement: string,
@@ -463,7 +485,8 @@ export function replaceWholeEditableText(
     element.querySelector(
       'strong, b, em, i, a, code, pre, blockquote, ul, ol, li, img, video, [contenteditable="false"]',
     ) ||
-    typeof element.ownerDocument.execCommand !== "function"
+    typeof element.ownerDocument.execCommand !== "function" ||
+    hasBlankLines(element)
   ) {
     return { applied: false, text: current };
   }

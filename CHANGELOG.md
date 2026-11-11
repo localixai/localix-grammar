@@ -2,7 +2,7 @@
 
 All notable changes to Localix Grammar are documented here.
 
-## 2.0.3 — Unreleased
+## 2.0.4 — Unreleased
 
 ### Runtime
 
@@ -13,14 +13,25 @@ All notable changes to Localix Grammar are documented here.
 - Replies much shorter or longer than the original are rejected; a reply cut off by the output
   limit is retried once with low reasoning, and the output budget now leaves room for reasoning.
 - The review panel and the popup show corrections as tracked changes.
+- A fresh install uses `~anthropic/claude-haiku-latest`, so a check works before a model is
+  chosen. The model in use is pinned to the top of the model list.
+- Requests ask for high reasoning effort: 28 of 30 test checks correct against 23 of 30 without
+  it, at the same latency. An endpoint that rejects the setting is asked again without it.
+- OpenRouter failures read as a sentence with a next step (rejected key, unavailable model, rate
+  limit, low balance, timeout) instead of the SDK's raw response dump.
+- A check has a deadline and always leaves the checking state; a JSON reply that is not the
+  proofread text is rejected.
+- The model catalog is cached across service worker restarts, loads without blocking the popup,
+  and can be retried when it fails.
+- Automatic checks no longer open the panel over the text being typed, a dismissed result stays
+  dismissed, and a whole-text replacement that would delete a blank line is refused.
 - Updated every dependency, including `@openrouter/sdk` 1.5.85, ESLint 10, Vite 8 and Vitest 5.
 - Added `npm run screenshots`: README and store images captured from the production build, and an
   optional pre-commit hook (`npm run hooks`) that refreshes them when the interface changes.
 - Removed forced `tool_choice` because some tool-capable OpenRouter endpoints reject it; one strict
   report tool remains and its returned call is still validated exactly.
 - Removed model-specific provider-routing overrides so OpenRouter can select endpoints using the
-  user's account preferences, and removed model preselection so every user makes an explicit
-  choice.
+  user's account preferences.
 - Reworked the in-editor review into a compact batch-first flow with a corrected-text preview,
   Accept all / Reject all controls, optional Git-style diff hunks, and a smaller stable editor
   trigger.

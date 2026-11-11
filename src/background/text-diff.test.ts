@@ -133,6 +133,17 @@ describe("corrected text reports", () => {
     }
   });
 
+  test("rejects a JSON reply that is not the echoed envelope", () => {
+    expect(() =>
+      correctedTextFromReport(
+        { correctedText: '{"message":"Sorry, I can only proofread."}' },
+        "hi ther",
+      ),
+    ).toThrow("answered instead of proofreading");
+    // Text that is itself JSON is proofread as text.
+    expect(correctedTextFromReport({ correctedText: '{"a":"b"}' }, '{"a":"b"}')).toBe('{"a":"b"}');
+  });
+
   test("unwraps an echoed request envelope and keeps edge whitespace", () => {
     expect(
       correctedTextFromReport({ correctedText: '{"text":"He goes home"}' }, "He go home"),

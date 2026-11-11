@@ -4,6 +4,7 @@ import { oAuthCreateSHA256CodeChallenge } from "@openrouter/sdk/funcs/oAuthCreat
 import { oAuthExchangeAuthCodeForAPIKey } from "@openrouter/sdk/funcs/oAuthExchangeAuthCodeForAPIKey.js";
 
 import { OPENROUTER_APP } from "./openrouter-app";
+import { openRouterErrorMessage } from "./openrouter-error";
 
 const TOKEN_EXCHANGE_TIMEOUT_MS = 30_000;
 
@@ -28,11 +29,7 @@ async function exchangeCode(
     },
   });
   if (!result.ok) {
-    const message =
-      result.error instanceof Error && result.error.message
-        ? result.error.message
-        : "OpenRouter key exchange failed.";
-    throw new Error(message);
+    throw new Error(openRouterErrorMessage(result.error, "OpenRouter sign-in did not complete."));
   }
   return result.value.key;
 }

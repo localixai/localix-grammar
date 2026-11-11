@@ -26,9 +26,11 @@ const MIN_AUTO_CHECK_WORDS = 3;
 const CACHE_LIMIT = 25;
 const CACHE_TTL_MS = 5 * 60 * 1_000;
 const RUNTIME_MESSAGE_TIMEOUT_MS = 10_000;
-const CHECK_RESPONSE_TIMEOUT_MS = 35_000;
-const CHECK_TIMEOUT_ERROR =
-  "OpenRouter did not respond within 35 seconds. Try another model or check again.";
+/** Longer than the service worker's own deadline, so its answer always arrives first. */
+const CHECK_RESPONSE_TIMEOUT_MS = 70_000;
+const CHECK_TIMEOUT_ERROR = "The check took too long. Try another model or check again.";
+/** How long a removed editor may take to come back before the session lets go of it. */
+const DETACHED_EDITOR_GRACE_MS = 1_000;
 
 function sendMessage(
   message: Message,
@@ -137,6 +139,10 @@ export class WritingSession {
   private autoCheckQueued = false;
   private composing = false;
   private trustedEditUntil = 0;
+  /** The person closed the panel; results for the same text stay out of the way. */
+  private panelDismissed = false;
+  private detachedSince = 0;
+  private destroyed = false;
 
   constructor() {
     this.overlay = new GrammarOverlay({
@@ -145,7 +151,7 @@ export class WritingSession {
       onApplyAll: (): void => void this.applyAll(),
       onRejectAll: (): void => this.rejectAll(),
       onIgnore: (error): void => this.ignore(error),
-      onClose: (): void => this.overlay.hidePanel(),
+      onClose: (): void => this.dismissPanel(),
     });
     this.resizeObserver = new ResizeObserver(() => this.schedulePosition());
     this.intersectionObserver =
@@ -189,6 +195,8 @@ export class WritingSession {
   }
 
   destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
     this.cancelPending();
     this.autoCheckQueued = false;
     document.removeEventListener("focusin", this.onFocusIn, true);
@@ -255,8 +263,36 @@ export class WritingSession {
     if (target && target === this.active) this.recordTextChange(target);
   };
 
+  private dismissPanel(): void {
+    this.panelDismissed = true;
+    this.overlay.hidePanel();
+  }
+
+  /**
+   * After the extension reloads or updates, this script is an orphan: every message fails.
+   * It removes itself instead of showing an error on each check.
+   */
+  private lostExtension(response: MessageResponse): boolean {
+    if (
+      response.success ||
+      !/context invalidated|receiving end does not exist/iu.test(response.error)
+    ) {
+      return false;
+    }
+    let alive = true;
+    try {
+      alive = !!chrome.runtime?.id;
+    } catch {
+      alive = false;
+    }
+    if (alive) return false;
+    this.destroy();
+    return true;
+  }
+
   private recordTextChange(target: SupportedElement): void {
     this.cancelPending();
+    this.panelDismissed = false;
     this.autoCheckQueued = true;
     this.result = null;
     this.snapshot = "";
@@ -278,7 +314,11 @@ export class WritingSession {
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
-    if (event.key === "Escape") this.overlay.hidePanel();
+    if (event.key === "Escape" && this.overlay.isPanelOpen()) {
+      // Escape pressed inside the panel closes the panel only, not the page's own dialog.
+      if (this.overlay.containsEvent(event)) event.stopPropagation();
+      this.dismissPanel();
+    }
     if (
       event.isTrusted &&
       !event.metaKey &&
@@ -329,6 +369,8 @@ export class WritingSession {
     }
     this.cancelPending();
     this.autoCheckQueued = false;
+    this.panelDismissed = false;
+    this.detachedSince = 0;
     this.trustedEditUntil = 0;
     this.resizeObserver.disconnect();
     this.intersectionObserver?.disconnect();
@@ -359,6 +401,7 @@ export class WritingSession {
 
   private async refreshSettings(): Promise<void> {
     const response = await sendMessage({ type: "GET_SETTINGS" });
+    if (this.lostExtension(response)) return;
     if (!response.success || !isSettingsView(response.data)) return;
     const modelChanged = this.settings.model !== response.data.model;
     this.settings = response.data;
@@ -397,7 +440,6 @@ export class WritingSession {
       !this.active.isConnected ||
       !this.settings.autoCheck ||
       !this.settings.connected ||
-      !this.settings.model ||
       this.composing ||
       !document.hasFocus()
     ) {
@@ -421,6 +463,7 @@ export class WritingSession {
     if (manual) {
       this.cancelPending();
       this.autoCheckQueued = false;
+      this.panelDismissed = false;
     }
     const liveElement = this.liveEditorForText(
       manual && this.active.isConnected ? getElementText(this.active) : this.lastKnownText,
@@ -434,8 +477,11 @@ export class WritingSession {
     this.lastKnownText = text;
     if (!text.trim()) return;
     if (text.length > MAX_CHECK_TEXT_LENGTH) {
+      // An automatic check marks the button and stays quiet; a click explains why.
       this.overlay.showError(
-        `Text is too long. Localix Grammar supports up to ${MAX_CHECK_TEXT_LENGTH} characters.`,
+        `Text is too long. Localix Grammar checks up to ${MAX_CHECK_TEXT_LENGTH.toLocaleString()} characters.`,
+        undefined,
+        manual,
       );
       return;
     }
@@ -445,11 +491,7 @@ export class WritingSession {
     )
       return;
     if (!this.settings.connected) {
-      this.overlay.showError("Connect OpenRouter from the extension popup.");
-      return;
-    }
-    if (!this.settings.model) {
-      this.overlay.showError("Choose a model from the Localix Grammar popup.");
+      this.overlay.showError("Connect OpenRouter from the extension popup.", undefined, manual);
       return;
     }
     const language = languageForElement(element);
@@ -458,7 +500,7 @@ export class WritingSession {
     if (cached) {
       this.result = cached;
       this.snapshot = text;
-      this.overlay.showResult(cached);
+      this.overlay.showResult(cached, this.shouldOpen(manual, cached));
       return;
     }
 
@@ -466,7 +508,8 @@ export class WritingSession {
     const requestId = crypto.randomUUID();
     this.requestId = requestId;
     this.snapshot = text;
-    this.overlay.showChecking();
+    // Typing must not be interrupted by a spinner: only a click opens the panel to wait.
+    this.overlay.showChecking(manual);
     const response = await sendMessage(
       {
         type: "CHECK_TEXT",
@@ -479,6 +522,7 @@ export class WritingSession {
       CHECK_RESPONSE_TIMEOUT_MS,
       CHECK_TIMEOUT_ERROR,
     );
+    if (this.lostExtension(response)) return;
     if (this.requestId !== requestId) return;
     this.requestId = null;
     if (!response.success && response.error === CHECK_TIMEOUT_ERROR) {
@@ -491,14 +535,27 @@ export class WritingSession {
       return;
     }
     if (!response.success || !isCheckResult(response.data)) {
-      if (!response.success && !/abort/iu.test(response.error))
-        this.overlay.showError(response.error);
+      if (!response.success && !/abort|cancelled/iu.test(response.error)) {
+        this.overlay.showError(response.error, undefined, manual && !this.panelDismissed);
+      } else {
+        this.overlay.setState("idle");
+        this.overlay.hidePanel();
+      }
       return;
     }
     this.result = response.data;
     this.snapshot = text;
     this.cacheResult(cacheKey, response.data);
-    this.overlay.showResult(response.data);
+    this.overlay.showResult(response.data, this.shouldOpen(manual, response.data));
+  }
+
+  /**
+   * A click always gets its answer. An automatic check opens the panel only when it found
+   * something, and never after the person closed the panel for this text.
+   */
+  private shouldOpen(manual: boolean, result: CheckResult): boolean {
+    if (this.panelDismissed) return false;
+    return manual || result.errors.length > 0;
   }
 
   private async applyOne(error: GrammarError, replacement: string): Promise<void> {
@@ -681,6 +738,9 @@ export class WritingSession {
     if (this.requestId) {
       void sendMessage({ type: "CANCEL_CHECK", payload: { requestId: this.requestId } });
       this.requestId = null;
+      // Nothing will answer now: leave no spinner behind.
+      this.overlay.setState("idle");
+      this.overlay.hidePanel();
     }
   }
 
@@ -690,8 +750,18 @@ export class WritingSession {
     requestAnimationFrame(() => {
       this.positioning = false;
       if (this.active && !this.active.isConnected) {
-        this.liveEditorForText(this.lastKnownText);
+        // Frameworks re-mount editors; look for the replacement briefly, then let go, so a
+        // removed editor does not cost a document scan on every frame.
+        this.detachedSince ||= Date.now();
+        if (
+          !this.liveEditorForText(this.lastKnownText) &&
+          Date.now() - this.detachedSince > DETACHED_EDITOR_GRACE_MS
+        ) {
+          this.activate(null);
+          return;
+        }
       }
+      if (this.active?.isConnected) this.detachedSince = 0;
       if (this.active?.isConnected && !hasWritingSpace(this.active)) {
         this.activate(null);
         return;
@@ -763,6 +833,8 @@ export class WritingSession {
       }
     }
 
+    // Empty text identifies nothing: any blank field on the page would match.
+    if (!expectedText) return null;
     for (const node of this.activeLineage.slice(1)) {
       if (!node.isConnected || !(node instanceof Element || node instanceof ShadowRoot)) {
         continue;

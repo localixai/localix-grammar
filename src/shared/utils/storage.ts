@@ -3,8 +3,11 @@ import type { Preferences, Settings, SettingsView, ThemeMode } from "../types";
 export const PREFERENCES_STORAGE_KEY = "preferences";
 export const API_KEY_STORAGE_KEY = "openrouterApiKey";
 
+/** An OpenRouter alias: it follows the newest Claude Haiku without an extension update. */
+export const DEFAULT_MODEL = "~anthropic/claude-haiku-latest";
+
 export const DEFAULT_PREFERENCES: Readonly<Preferences> = {
-  model: "",
+  model: DEFAULT_MODEL,
   enabled: true,
   autoCheck: true,
   checkDelayMs: 700,
@@ -17,9 +20,11 @@ function isThemeMode(value: unknown): value is ThemeMode {
 }
 
 function normalizeModel(value: unknown): string {
-  if (typeof value !== "string") return "";
+  if (typeof value !== "string") return DEFAULT_MODEL;
   const model = value.trim();
-  return model.length <= 200 && !/[\u0000-\u001f\u007f]/u.test(model) ? model : "";
+  return model && model.length <= 200 && !/[\u0000-\u001f\u007f]/u.test(model)
+    ? model
+    : DEFAULT_MODEL;
 }
 
 function normalizeSite(value: unknown): string | null {

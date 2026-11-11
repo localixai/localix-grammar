@@ -37,12 +37,14 @@ beforeEach(() => {
 describe("preference storage", () => {
   test("returns safe defaults when storage is empty", async () => {
     await expect(getPreferences()).resolves.toEqual(DEFAULT_PREFERENCES);
-    expect(DEFAULT_PREFERENCES.model).toBe("");
+    expect(DEFAULT_PREFERENCES.model).toBe("~anthropic/claude-haiku-latest");
   });
 
-  test("preserves an explicit empty model selection", async () => {
+  test("uses the default model when none is stored", async () => {
     values.set(PREFERENCES_STORAGE_KEY, { model: "   " });
-    await expect(getPreferences()).resolves.toMatchObject({ model: "" });
+    await expect(getPreferences()).resolves.toMatchObject({ model: DEFAULT_PREFERENCES.model });
+    values.set(PREFERENCES_STORAGE_KEY, { model: "openai/gpt-6-luna" });
+    await expect(getPreferences()).resolves.toMatchObject({ model: "openai/gpt-6-luna" });
   });
 
   test("normalizes untrusted values and deduplicates disabled sites", async () => {

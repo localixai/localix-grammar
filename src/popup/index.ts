@@ -31,12 +31,32 @@ function element<T extends HTMLElement>(id: string): T {
   return value as T;
 }
 
+/** Longer than the service worker's own deadline for each task, so its answer always arrives. */
+const MESSAGE_TIMEOUT_MS: Partial<Record<Message["type"], number>> = {
+  CHECK_TEXT: 70_000,
+  FETCH_MODELS: 30_000,
+  INITIATE_OAUTH: 300_000,
+  CONNECT_API_KEY: 20_000,
+};
+
 function sendMessage(message: Message): Promise<MessageResponse> {
   return sendRuntimeMessage(
     message,
-    message.type === "CHECK_TEXT" ? 35_000 : 10_000,
+    MESSAGE_TIMEOUT_MS[message.type] ?? 10_000,
     "Localix Grammar did not respond. Try again.",
   );
+}
+
+const THEME_CACHE_KEY = "localix-theme";
+
+/** The theme last used, so the popup opens in it instead of flashing the other one. */
+function cachedTheme(): ThemeMode {
+  try {
+    const value = localStorage.getItem(THEME_CACHE_KEY);
+    return value === "dark" || value === "light" ? value : "system";
+  } catch {
+    return "system";
+  }
 }
 
 function isSettingsView(value: unknown): value is SettingsView {
@@ -127,10 +147,15 @@ const quickCheckCount = element("quickCheckCount");
 const quickCheckStatus = element("quickCheckStatus");
 const quickCheckCopy = element<HTMLButtonElement>("quickCheckCopy");
 const quickCheckDiff = element("quickCheckDiff");
+const quickCheckUndo = element<HTMLButtonElement>("quickCheckUndo");
 
 let settings: SettingsView | null = null;
 let hostname: string | null = null;
 let models: ModelInfo[] = [];
+let modelsLoading: Promise<void> | null = null;
+let modelsError = "";
+/** The text as it was before the last check replaced it. */
+let textBeforeCheck: string | null = null;
 let alertTimer: number | undefined;
 let quickCheckRequestId: string | null = null;
 let connectedView: "check" | "settings" = "check";
@@ -149,7 +174,7 @@ function consumeSelection(value: unknown): void {
   quickCheckInput.dispatchEvent(new Event("input", { bubbles: true }));
   if (value.truncated) {
     quickCheckStatus.textContent = "Only the first 20,000 characters were selected.";
-  } else if (settings.connected && settings.model) {
+  } else if (settings.connected) {
     connectedView = "check";
     show(checkView);
     quickCheckForm.requestSubmit();
@@ -164,6 +189,17 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 function clearQuickCheckDiff(): void {
   quickCheckDiff.replaceChildren();
   quickCheckDiff.classList.add("hidden");
+  textBeforeCheck = null;
+  quickCheckUndo.classList.add("hidden");
+}
+
+function setQuickCheckText(text: string): void {
+  quickCheckInput.value = text;
+  quickCheckCount.textContent = `${text.length.toLocaleString()} / ${MAX_CHECK_TEXT_LENGTH.toLocaleString()}`;
+  quickCheckCount.classList.toggle("over-limit", text.length > MAX_CHECK_TEXT_LENGTH);
+  const hasText = !!text.trim();
+  quickCheckButton.disabled = !hasText || text.length > MAX_CHECK_TEXT_LENGTH;
+  quickCheckCopy.disabled = !hasText;
 }
 
 function renderQuickCheck(result: CheckResult): void {
@@ -172,32 +208,47 @@ function renderQuickCheck(result: CheckResult): void {
     quickCheckStatus.textContent = "No corrections needed";
     return;
   }
-  const corrected = correctedText(result);
-  quickCheckInput.value = corrected;
-  quickCheckCount.textContent = `${corrected.length.toLocaleString()} / ${MAX_CHECK_TEXT_LENGTH.toLocaleString()}`;
+  setQuickCheckText(correctedText(result));
+  textBeforeCheck = result.originalText;
+  quickCheckUndo.classList.remove("hidden");
   quickCheckStatus.textContent = `${result.errors.length} ${result.errors.length === 1 ? "correction" : "corrections"} applied`;
   quickCheckDiff.append(renderDiff(result, document));
   quickCheckDiff.classList.remove("hidden");
 }
 
+function cancelQuickCheck(): void {
+  if (!quickCheckRequestId) return;
+  void sendMessage({ type: "CANCEL_CHECK", payload: { requestId: quickCheckRequestId } });
+  quickCheckRequestId = null;
+  quickCheckButton.textContent = "Check";
+}
+
 quickCheckInput.addEventListener("input", () => {
-  quickCheckCount.textContent = `${quickCheckInput.value.length.toLocaleString()} / ${MAX_CHECK_TEXT_LENGTH.toLocaleString()}`;
-  const hasText = !!quickCheckInput.value.trim();
-  quickCheckButton.disabled = !hasText;
-  quickCheckCopy.disabled = !hasText;
-  quickCheckStatus.textContent = "";
+  cancelQuickCheck();
+  setQuickCheckText(quickCheckInput.value);
+  quickCheckStatus.textContent =
+    quickCheckInput.value.length > MAX_CHECK_TEXT_LENGTH
+      ? `Shorten the text to ${MAX_CHECK_TEXT_LENGTH.toLocaleString()} characters to check it.`
+      : "";
   clearQuickCheckDiff();
-  if (quickCheckRequestId) {
-    void sendMessage({ type: "CANCEL_CHECK", payload: { requestId: quickCheckRequestId } });
-    quickCheckRequestId = null;
-    quickCheckButton.textContent = "Check";
-  }
 });
+
+quickCheckUndo.addEventListener("click", () => {
+  if (textBeforeCheck === null) return;
+  const original = textBeforeCheck;
+  clearQuickCheckDiff();
+  setQuickCheckText(original);
+  quickCheckStatus.textContent = "Original text restored";
+  quickCheckInput.focus();
+});
+
+// A check the popup no longer waits for should not keep spending tokens.
+window.addEventListener("pagehide", cancelQuickCheck);
 
 quickCheckForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const text = quickCheckInput.value;
-  if (!text.trim() || quickCheckRequestId) return;
+  if (!text.trim() || text.length > MAX_CHECK_TEXT_LENGTH || quickCheckRequestId) return;
   const requestId = crypto.randomUUID();
   quickCheckRequestId = requestId;
   quickCheckButton.disabled = true;
@@ -207,6 +258,8 @@ quickCheckForm.addEventListener("submit", (event) => {
     const response = await sendMessage({ type: "CHECK_TEXT", payload: { requestId, text } });
     if (quickCheckRequestId !== requestId) return;
     quickCheckRequestId = null;
+    // Whatever went wrong, make sure the service worker is not still working on it.
+    if (!response.success) void sendMessage({ type: "CANCEL_CHECK", payload: { requestId } });
     quickCheckButton.disabled = false;
     quickCheckButton.textContent = "Check";
     if (quickCheckInput.value !== text) return;
@@ -259,9 +312,12 @@ settingsTab.addEventListener("click", () => {
 function showAlert(message: string): void {
   window.clearTimeout(alertTimer);
   popupAlert.textContent = message;
+  popupAlert.title = "Click to dismiss";
   popupAlert.classList.remove("hidden");
   alertTimer = window.setTimeout(() => popupAlert.classList.add("hidden"), 6_000);
 }
+
+popupAlert.addEventListener("click", () => clearAlert());
 
 function clearAlert(): void {
   window.clearTimeout(alertTimer);
@@ -302,6 +358,11 @@ function resetConnectionForm(): void {
 
 function applyTheme(theme: ThemeMode): void {
   document.documentElement.dataset["theme"] = resolveTheme(theme);
+  try {
+    localStorage.setItem(THEME_CACHE_KEY, theme);
+  } catch {
+    // Storage can be unavailable; the popup then opens in the system theme.
+  }
   themeButton.innerHTML = THEME_ICON[theme];
   const next = nextTheme(theme);
   themeButton.setAttribute("aria-label", `Theme: ${theme}. Switch to ${next}.`);
@@ -314,11 +375,6 @@ function modelLabel(id: string): string {
 
 function renderSelectedModel(): void {
   if (!settings) return;
-  if (!settings.model) {
-    modelName.textContent = "Choose a model";
-    modelId.textContent = "Required before checking";
-    return;
-  }
   modelName.textContent = modelLabel(settings.model);
   modelId.textContent = settings.model;
 }
@@ -335,7 +391,6 @@ function renderSettings(): void {
   enabledToggle.checked = settings.enabled;
   autoCheckToggle.checked = settings.autoCheck;
   renderSelectedModel();
-  if (!settings.model) connectedView = "settings";
   siteSetting.classList.toggle("hidden", hostname === null);
   if (hostname) {
     siteTitle.textContent = hostname;
@@ -360,16 +415,47 @@ async function updatePreferences(patch: Partial<Preferences>): Promise<boolean> 
   return true;
 }
 
-async function loadModels(): Promise<void> {
-  const response = await sendMessage({ type: "FETCH_MODELS" });
-  models = response.success && Array.isArray(response.data) ? response.data : [];
-  if (!response.success) showAlert(`Could not load the model catalog: ${response.error}`);
-  renderSelectedModel();
+/** Loads the catalog in the background; the popup is usable before it arrives. */
+function loadModels(): Promise<void> {
+  modelsLoading ??= (async (): Promise<void> => {
+    modelsError = "";
+    const response = await sendMessage({ type: "FETCH_MODELS" });
+    if (response.success && Array.isArray(response.data)) models = response.data;
+    else modelsError = response.success ? "Could not read the model list." : response.error;
+    modelsLoading = null;
+    renderSelectedModel();
+    if (!modelsView.classList.contains("hidden")) renderModels(modelSearch.value);
+  })();
+  return modelsLoading;
+}
+
+function modelListNote(message: string, retry = false): void {
+  const note = document.createElement("div");
+  note.className = "empty-models";
+  note.setAttribute("role", "status");
+  note.textContent = message;
+  if (retry) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "text-button";
+    button.textContent = "Retry";
+    button.addEventListener("click", () => {
+      void loadModels();
+      renderModels(modelSearch.value);
+    });
+    note.append(document.createElement("br"), button);
+  }
+  modelList.appendChild(note);
 }
 
 function renderModels(query = ""): void {
   modelList.replaceChildren();
   if (!settings) return;
+  if (models.length === 0) {
+    if (modelsLoading) modelListNote("Loading models…");
+    else modelListNote(modelsError || "Could not load the model list.", true);
+    return;
+  }
   const normalized = query.trim().toLowerCase();
   const filtered = models.filter(
     (model) =>
@@ -389,12 +475,12 @@ function renderModels(query = ""): void {
     return a.name.localeCompare(b.name);
   });
   if (filtered.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "empty-models";
-    empty.textContent = "No models found";
-    modelList.appendChild(empty);
+    modelListNote("No models match your search");
     return;
   }
+  // The model in use is always the first thing in an unfiltered list.
+  const current = filtered.findIndex((model) => model.id === settings?.model);
+  if (!normalized && current > 0) filtered.unshift(...filtered.splice(current, 1));
 
   for (const model of filtered) {
     const item = document.createElement("button");
@@ -502,6 +588,7 @@ disconnectButton.addEventListener("click", () => {
       settings = { ...settings, connected: false };
       resetConnectionForm();
       renderSettings();
+      connectButton.focus();
     } else if (!response.success) {
       showAlert(`Could not disconnect: ${response.error}`);
     }
@@ -543,6 +630,7 @@ siteToggle.addEventListener("change", () => {
 
 modelButton.addEventListener("click", () => {
   modelSearch.value = "";
+  if (models.length === 0) void loadModels();
   renderModels();
   show(modelsView);
   modelSearch.focus();
@@ -555,6 +643,26 @@ function closeModels(): void {
 
 modelsBackButton.addEventListener("click", closeModels);
 modelSearch.addEventListener("input", () => renderModels(modelSearch.value));
+modelSearch.addEventListener("keydown", (event) => {
+  const first = modelList.querySelector<HTMLButtonElement>(".model-item");
+  if (!first) return;
+  if (event.key === "Enter") {
+    event.preventDefault();
+    first.click();
+  } else if (event.key === "ArrowDown") {
+    event.preventDefault();
+    first.focus();
+  }
+});
+modelList.addEventListener("keydown", (event) => {
+  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+  const item = (event.target as Element).closest<HTMLButtonElement>(".model-item");
+  if (!item) return;
+  event.preventDefault();
+  const next = event.key === "ArrowDown" ? item.nextElementSibling : item.previousElementSibling;
+  if (next instanceof HTMLElement) next.focus();
+  else if (event.key === "ArrowUp") modelSearch.focus();
+});
 modelSort.addEventListener("change", () => renderModels(modelSearch.value));
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !modelsView.classList.contains("hidden")) {
@@ -584,10 +692,11 @@ async function initialize(): Promise<void> {
   }
   settings = settingsResponse.data;
   applyTheme(settings.theme);
-  if (settings.connected) await loadModels();
+  if (settings.connected) void loadModels();
   renderSettings();
   const stored = await chrome.storage.session.get(PENDING_SELECTION_KEY);
   consumeSelection(queuedSelection ?? stored[PENDING_SELECTION_KEY]);
 }
 
+document.documentElement.dataset["theme"] = resolveTheme(cachedTheme());
 void initialize();

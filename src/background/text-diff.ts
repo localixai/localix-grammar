@@ -21,10 +21,21 @@ function withoutEnvelope(correctedText: string, originalText: string): string {
     try {
       const parsed: unknown = JSON.parse(trimmed);
       if (parsed && typeof parsed === "object") {
-        const values = Object.values(parsed);
-        if (values.length === 1 && typeof values[0] === "string") return values[0];
+        // Only the envelopes a model can echo. Any other object is a refusal or an answer,
+        // and must not be offered as the corrected text.
+        const entries = Object.entries(parsed);
+        const [key, value] = entries[0] ?? [];
+        if (
+          entries.length === 1 &&
+          (key === "text" || key === "correctedText") &&
+          typeof value === "string"
+        ) {
+          return value;
+        }
+        throw new Error("The selected model answered instead of proofreading. Try again.");
       }
-    } catch {
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
       // Not an envelope: the model returned prose that merely starts with a brace.
     }
   }

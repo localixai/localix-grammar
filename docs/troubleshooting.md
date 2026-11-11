@@ -27,8 +27,8 @@ key with OpenRouter before storing it; management keys are intentionally rejecte
 ## A model returns no suggestions or an error
 
 Different OpenRouter models vary in structured-tool support and proofreading quality. Try the
-same text with another tool-capable model from the live catalog. Localix intentionally does not
-preselect or recommend a provider-specific model.
+same text with another tool-capable model from the live catalog. A fresh install starts on
+`~anthropic/claude-haiku-latest`, an OpenRouter alias that follows the newest Claude Haiku.
 
 Localix rejects:
 

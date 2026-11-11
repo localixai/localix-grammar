@@ -81,8 +81,9 @@ items in the manual release matrix.
 ## Live catalog release check
 
 On July 31, 2026, the same pinned SDK catalog operation confirmed that tool-capable models were
-available. The production picker does not preselect or rely on a dated model entry: it queries and
-filters the current official catalog after connection and requires an explicit user choice.
+available. The picker queries and filters the current official catalog after connection. A fresh
+install starts on `~anthropic/claude-haiku-latest`, an OpenRouter alias and not a dated entry, so a
+check works before the user opens the picker; any catalog model can replace it.
 
 ## Why the official SDK, not pi or raw fetch
 
@@ -116,8 +117,12 @@ samples. What the measurements settled:
 
 - The text travels between `<text>` tags, not as a JSON envelope. Models echoed the JSON envelope
   back as the "corrected text"; the validator still unwraps an echoed envelope or tag pair.
-- `tool_choice`, `temperature`, `provider`, and `reasoning` stay unset. Forcing them fails on models
-  that lack support, and a fixed low reasoning effort made the weakest model miss agreement errors.
+- `tool_choice`, `temperature` and `provider` stay unset. Forcing them fails on models that lack
+  support.
+- `reasoning.effort` is `high`. Left unset, the default model often skipped thinking and missed
+  agreement and comma errors: 23 of 30 checks correct against 28 of 30 with `high`, at the same
+  mean latency (about 0.9 s). An endpoint that rejects the setting with a 400 is asked again
+  without it.
 - The output budget is the text length times two plus reasoning headroom. Reasoning tokens count
   against the same limit, and a thinking model exhausted the previous budget on a 1,000-character
   text. A truncated reply is retried once with low reasoning effort.

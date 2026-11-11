@@ -288,14 +288,11 @@ test("runs OpenRouter SDK checks, caches decisions, preserves rich text, and ski
   expect(grammarRequestCount).toBe(0);
   await expect(root.locator(".panel")).toBeHidden();
 
-  await root.locator(".trigger").click();
-  await expect(root.getByText("Choose a model from the Localix Grammar popup.")).toBeVisible();
-  expect(grammarRequestCount).toBe(0);
-
   const setupPopup = await context.newPage();
   await setupPopup.goto(`chrome-extension://${extensionId}/src/popup/index.html`);
-  await expect(setupPopup.locator("#modelName")).toHaveText("Choose a model");
-  await expect(setupPopup.locator("#modelId")).toHaveText("Required before checking");
+  // Nothing is stored, so the default model is already selected.
+  await setupPopup.locator("#settingsTab").click();
+  await expect(setupPopup.locator("#modelId")).toContainText("~anthropic/claude-haiku-latest");
   await setupPopup.locator("#modelButton").click();
   await setupPopup.locator("#modelSearch").fill("openai/gpt-5.4-mini");
   await setupPopup.locator(".model-item", { hasText: "openai/gpt-5.4-mini" }).click();
@@ -321,7 +318,7 @@ test("runs OpenRouter SDK checks, caches decisions, preserves rich text, and ski
     parallel_tool_calls: false,
   });
   expect(requestPayload.max_completion_tokens).toBeGreaterThan(6_000);
-  expect(requestPayload).not.toHaveProperty("reasoning");
+  expect(requestPayload).toHaveProperty("reasoning", { effort: "high" });
   expect(requestPayload).not.toHaveProperty("provider");
   expect(requestPayload.tools?.[0]?.function?.name).toBe("report_corrected_text");
   expect(requestPayload.tools?.[0]?.function?.strict).toBe(true);
@@ -611,7 +608,9 @@ test("renders the connected popup with the OpenRouter model catalog", async ({},
   await expect(page.getByRole("region", { name: "Available models" })).toBeVisible();
   await expect(page.locator("#modelSearch")).toBeFocused();
   await expect(page.locator("#modelSort")).toHaveValue("newest");
-  await expect(page.locator(".model-item").first()).toContainText("DeepSeek V4 Flash");
+  // The model in use is pinned first; the sort order starts after it.
+  await expect(page.locator(".model-item").first()).toContainText("openai/gpt-5.4-mini");
+  await expect(page.locator(".model-item").nth(1)).toContainText("DeepSeek V4 Flash");
   await page.locator("#modelSort").selectOption("oldest");
   await expect(page.locator(".model-item").first()).toContainText("OpenAI: GPT-5.4");
   await page.locator("#modelSort").selectOption("newest");
@@ -914,7 +913,9 @@ test("always leaves the checking state when OpenRouter rejects a model request",
   await root.locator(".trigger").click();
 
   await expect(root.getByText("Could not check this text")).toBeVisible();
-  await expect(root.getByText("No compatible OpenRouter endpoint is available.")).toBeVisible();
+  await expect(
+    root.getByText("This model is not available. Choose another one in the popup."),
+  ).toBeVisible();
   await expect(root.getByText("Checking your writing…")).toBeHidden();
   await expect(root.locator(".trigger")).toBeEnabled();
   await page.close();

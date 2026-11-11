@@ -2,6 +2,7 @@ import { OpenRouterCore } from "@openrouter/sdk/core.js";
 import { apiKeysGetCurrentKeyMetadata } from "@openrouter/sdk/funcs/apiKeysGetCurrentKeyMetadata.js";
 
 import { OPENROUTER_APP } from "../shared/utils/openrouter-app";
+import { openRouterErrorMessage, openRouterStatusCode } from "../shared/utils/openrouter-error";
 
 interface KeyMetadata {
   readonly isManagementKey: boolean;
@@ -18,7 +19,16 @@ async function verifyWithOpenRouter(apiKey: string): Promise<KeyMetadata> {
   });
   const result = await apiKeysGetCurrentKeyMetadata(client);
   if (!result.ok) {
-    throw new Error("OpenRouter could not verify this API key. Check it and try again.");
+    // Only a rejection says the key is wrong; an outage must not make a good key look bad.
+    const status = openRouterStatusCode(result.error);
+    throw new Error(
+      status === 401 || status === 403
+        ? "OpenRouter did not accept this API key. Check it and try again."
+        : openRouterErrorMessage(
+            result.error,
+            "Could not reach OpenRouter to verify the key. Try again.",
+          ),
+    );
   }
   return { isManagementKey: result.value.data.isManagementKey };
 }
