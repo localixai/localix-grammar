@@ -47,6 +47,7 @@ Icon
 .fleet/
 .zed/
 .history/
+.localix/
 *.suo
 *.ntvs*
 *.njsproj

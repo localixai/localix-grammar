@@ -453,6 +453,13 @@ test("runs OpenRouter SDK checks, caches decisions, preserves rich text, and ski
   await popup.locator("#modelSearch").fill("openai/gpt-5.4-mini");
   await popup.locator(".model-item", { hasText: "openai/gpt-5.4-mini" }).click();
   await popup.locator("#autoCheckToggle").check();
+  // The content script learns a saved setting on its next settings read, some time after the
+  // popup's click. Text typed before that read meets auto-check still off and is never queued.
+  // Saves are serial, so the read that brings the trigger back also has auto-check and the model.
+  await popup.locator("#enabledToggle").uncheck();
+  await expect(root.locator(".trigger")).toBeHidden();
+  await popup.locator("#enabledToggle").check();
+  await expect(root.locator(".trigger")).toBeVisible();
   await page.bringToFront();
 
   await page.locator("#rich").fill("This are automatic text.");
