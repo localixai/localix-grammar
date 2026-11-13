@@ -113,6 +113,6 @@ The images contain no personal writing and no API key. Look at them before uploa
 
 ## Support
 
-- Homepage: `https://localix.ai`
-- Source and issues: `https://github.com/rsaryev/llx-grammar`
+- Homepage: `https://grammar.localix.ai`
+- Source and issues: `https://github.com/localixai/localix-grammar`
 - Privacy policy: publish the repository privacy policy at a stable public HTTPS URL

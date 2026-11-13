@@ -87,4 +87,4 @@ disclosed in the product and store listing before the new practice takes effect.
 ## Contact
 
 Questions can be opened at
-[github.com/rsaryev/llx-grammar/issues](https://github.com/rsaryev/llx-grammar/issues).
+[github.com/localixai/localix-grammar/issues](https://github.com/localixai/localix-grammar/issues).

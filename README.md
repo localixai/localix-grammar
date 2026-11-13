@@ -18,8 +18,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/rsaryev/llx-grammar/actions/workflows/ci.yml"><img src="https://github.com/rsaryev/llx-grammar/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
-  <img src="https://img.shields.io/github/package-json/v/rsaryev/llx-grammar?color=black&label=version" alt="Version">
+  <a href="https://github.com/localixai/localix-grammar/actions/workflows/ci.yml"><img src="https://github.com/localixai/localix-grammar/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <img src="https://img.shields.io/github/package-json/v/localixai/localix-grammar?color=black&label=version" alt="Version">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-black" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/Chrome-Manifest%20V3-black?logo=googlechrome&logoColor=white" alt="Chrome Manifest V3">
   <img src="https://img.shields.io/badge/TypeScript-black?logo=typescript&logoColor=white" alt="Written in TypeScript">
@@ -71,7 +71,7 @@ It works in text fields and `contenteditable` editors, and stays out of password
 Requires Node.js 22.19 or later and Chrome or Chromium 127 or later.
 
 ```bash
-git clone https://github.com/rsaryev/llx-grammar && cd llx-grammar
+git clone https://github.com/localixai/localix-grammar && cd localix-grammar
 npm ci --ignore-scripts
 npm run build                                # the unpacked extension, in dist/
 ```
