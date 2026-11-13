@@ -2,15 +2,14 @@ import type { Block, Card, LandingContent, Media, Shot } from '@/shared/config';
 
 // The landing's words. The design is the template's; this file is the site's. The pictures are
 // the repository's own screenshots (public/shots links to docs/assets), captured from the
-// production build by `npm run screenshots`, each in the light and the dark theme: the page shows
-// the one the reader's system is set to, as the extension itself does.
+// production build by `npm run screenshots`. The page is dark whatever the reader's system says,
+// so it always shows the extension's dark theme.
 const DOCS = '/docs';
 const GITHUB = 'https://github.com/localixai/localix-grammar';
 
 const terminal = (blocks: Block[], label: string): Media => ({ kind: 'terminal', blocks, label });
 const shot = (name: string, width: number, height: number, alt: string): Shot => ({
-  src: `/shots/${name}-light.png`,
-  dark: `/shots/${name}-dark.png`,
+  src: `/shots/${name}-dark.png`,
   alt,
   width,
   height,
