@@ -121,4 +121,4 @@ The images contain no personal writing and no API key. Look at them before uploa
 
 - Homepage: `https://grammar.localix.ai`
 - Source and issues: `https://github.com/localixai/localix-grammar`
-- Privacy policy: publish the repository privacy policy at a stable public HTTPS URL
+- Privacy policy: `https://grammar.localix.ai/privacy` (the repository's `PRIVACY_POLICY.md`, published by the site)
