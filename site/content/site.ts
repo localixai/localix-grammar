@@ -32,14 +32,14 @@ const site: SiteConfig = {
     ],
     action: { label: 'Install', href: '/#start' },
   },
+  maker: { label: 'Localix Lab', href: 'https://localix.ai' },
   footer: {
-    note: 'Localix Grammar is MIT-licensed and open source, from Localix Lab.',
+    note: 'Localix Grammar is MIT-licensed and open source.',
     links: [
       { label: 'Docs', href: '/docs' },
       { label: 'Privacy policy', href: '/docs/privacy' },
       { label: 'GitHub', href: GITHUB },
       { label: 'Changelog', href: `${GITHUB}/blob/main/CHANGELOG.md` },
-      { label: 'localix.ai', href: 'https://localix.ai' },
     ],
   },
   jsonLd: {
