@@ -32,7 +32,7 @@ choose a model from OpenRouter's live catalog. Copying a key is optional.
 
 - Manual or check-while-typing modes
 - Global and per-site switches
-- Accept/Reject all and individual Git-style changes
+- Every change marked in the corrected text; apply all of it, or copy the text
 - Searchable model picker
 - Dark, light, and system themes
 - Keyboard navigation and reduced-motion support

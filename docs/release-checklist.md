@@ -46,7 +46,7 @@ npm run zip
 - [ ] Fresh disconnected popup explains OpenRouter clearly.
 - [ ] OAuth and API-key connect, validation, cancel, failure, reconnect, and disconnect states
       behave correctly.
-- [ ] Manual check, automatic check, individual Accept/Reject, Accept all/Reject all, and clean
+- [ ] Manual check, automatic check, Apply all, Copy text (and Copy for Teams on Teams), and clean
       result.
 - [ ] Plain textarea, search/text input, multi-node rich text, and an iframe.
 - [ ] Controlled rich editor that replaces its DOM node during check, apply, and repeated input.

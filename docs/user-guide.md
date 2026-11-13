@@ -25,16 +25,17 @@ OAuth uses PKCE. A manually entered key is verified directly with OpenRouter bef
 In both cases, the key is stored only in trusted extension storage and is never returned to the
 popup after connection. Disconnecting removes it.
 
-No model is selected automatically. After connecting, choose any tool-capable model from the live
-OpenRouter catalog before the first check.
+A fresh install uses `~anthropic/claude-haiku-latest`, an OpenRouter alias that follows the newest
+Claude Haiku. To change it, open **Settings** in the popup and choose any tool-capable model from the
+live OpenRouter catalog under **Model**.
 
 ## Check writing
 
 1. Focus a supported text field or rich-text editor.
 2. Select the Localix button at the lower-right edge of the editor.
-3. Review the corrected-text preview.
-4. Choose **Accept all** or **Reject all**, or open **Review changes** to accept or reject
-   individual Git-style diff hunks.
+3. Review the corrected-text preview, each change marked in it.
+4. Choose **Apply all** to write every change into the editor, or **Copy text** to copy the
+   corrected text. **Escape** or the close button closes the panel.
 
 Localix verifies that the reported text still exists at the exact location before applying a
 change. If the editor changed while the model was responding, the old result is discarded.
@@ -96,8 +97,8 @@ reading or modifying the wrong content.
 
 ## Keyboard and accessibility
 
-- Tab reaches popup controls, the in-page Localix trigger, Accept, Reject, Accept all, Reject all,
-  and Close.
+- Tab reaches popup controls, the in-page Localix trigger, the corrected-text preview, Apply all,
+  Copy text, and Close.
 - Enter or Space activates the focused control.
 - Escape closes the suggestion panel or returns from the model list.
 - Focus returns to a stable control when an issue card is removed or the panel closes.
