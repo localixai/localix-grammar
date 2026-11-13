@@ -75,6 +75,12 @@ trusted extension contexts.
 
 Required to complete OpenRouter's OAuth PKCE authorization through Chrome's managed web-auth flow.
 
+### contextMenus
+
+Required to add one item, **Correct selected text with Localix Grammar**, to the right-click menu.
+The selected text is read only when the person chooses that item, and is checked like any other
+text.
+
 ### Host access on all sites
 
 The content script requires access for the extension's single purpose: show the Localix control in

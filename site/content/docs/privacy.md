@@ -4,7 +4,7 @@ Localix Grammar is a Chrome extension that checks grammar, spelling, punctuation
 AI models available through OpenRouter. Localix does not operate a proxy, analytics service, or text
 database for the extension.
 
-_Last updated: July 31, 2026. This page publishes the repository's
+_Last updated: November 13, 2026. This page publishes the repository's
 [PRIVACY_POLICY.md](https://github.com/localixai/localix-grammar/blob/main/PRIVACY_POLICY.md)._
 
 ## Data processed
@@ -69,8 +69,9 @@ Localix personnel do not read submitted writing.
 
 [OpenRouter](https://openrouter.ai/privacy) receives the submitted text and routes it to the model
 provider you select. Their policies and the selected provider's policies govern that processing.
-Grammar requests ask OpenRouter to deny providers that require data collection, but this preference
-does not replace reviewing those third-party policies.
+The extension sets no provider or data-collection preference of its own: OpenRouter applies the
+provider and privacy settings of your OpenRouter account, so review those settings and the
+third-party policies.
 
 ## Retention and deletion
 

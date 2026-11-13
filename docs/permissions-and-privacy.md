@@ -11,6 +11,7 @@ selected through the user's OpenRouter account.
 | ----------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------- |
 | `storage`                     | Stores preferences and the OAuth-issued or manually supplied OpenRouter key | Extension-owned settings and credential              |
 | `identity`                    | Runs OpenRouter PKCE through `chrome.identity.launchWebAuthFlow`            | OAuth callback code                                  |
+| `contextMenus`                | Adds **Correct selected text with Localix Grammar** to the right-click menu | The selected text, when that item is chosen          |
 | `https://openrouter.ai/*`     | Lets the service worker call the selected OpenRouter model                  | Text submitted for a check and OpenRouter credential |
 | HTTP(S) content-script access | Shows the writing UI in supported editors across websites and frames        | Text in an eligible active editor when a check runs  |
 
