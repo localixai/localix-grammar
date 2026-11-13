@@ -6,6 +6,7 @@ dist-zip/
 !.github/
 !.github/workflows/
 !.github/workflows/ci.yml
+!.github/workflows/site.yml
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
 node_modules/
