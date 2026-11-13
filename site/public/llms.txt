@@ -1,0 +1,9 @@
+# Localix Grammar
+
+> Localix Grammar is an open source Chrome extension that proofreads text in web editors with a model the user picks on OpenRouter: it fixes spelling, grammar and punctuation, shows each change as a tracked edit, and applies them in one click.
+
+One check is one request: the model returns the corrected text, and the extension derives every
+suggestion by comparing it with the original. The OpenRouter key stays in the extension's storage;
+text is sent only when a check runs, only to OpenRouter and the selected model. It is installed
+from source (https://github.com/localixai/localix-grammar), MIT-licensed, and made by Localix Lab
+(https://localix.ai).

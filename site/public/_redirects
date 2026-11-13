@@ -1,0 +1,4 @@
+# Cloudflare Pages: a short, stable address for the privacy policy, for the Chrome Web Store
+# listing and anyone asked for one. The page itself is a docs page.
+/privacy /docs/privacy 301
+/privacy/ /docs/privacy 301
