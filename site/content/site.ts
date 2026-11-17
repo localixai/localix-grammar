@@ -49,6 +49,12 @@ const site: SiteConfig = {
     license: 'https://opensource.org/licenses/MIT',
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
   },
+  // Usage statistics: Google Analytics 4, only after a visitor's yes (the lab's one property).
+  analytics: {
+    ga4: 'G-Q8WCW7ZLDD',
+    notice: 'We count visits with Google Analytics, only with your yes, to see which pages help.',
+    privacy: 'https://localix.ai/privacy',
+  },
   llms: '> Localix Grammar is an open source Chrome extension that proofreads text in web editors with a model the user picks on OpenRouter: it fixes spelling, grammar and punctuation, shows each change as a tracked edit, and applies them in one click.',
 };
 
