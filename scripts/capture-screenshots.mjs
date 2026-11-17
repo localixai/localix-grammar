@@ -117,12 +117,6 @@ const POPUP_STAGE = `
       radial-gradient(circle at 12% 92%, rgba(90, 137, 230, .12), transparent 32%),
       #070707 !important;
   }
-  html[data-theme="light"] body {
-    background:
-      radial-gradient(circle at 84% 12%, rgba(60, 160, 100, .16), transparent 30%),
-      radial-gradient(circle at 12% 92%, rgba(70, 110, 220, .14), transparent 32%),
-      #ececec !important;
-  }
   .shell {
     width: 360px; zoom: var(--stage-zoom, 1.55); overflow: hidden;
     background: var(--background);
@@ -181,7 +175,7 @@ async function main() {
       (await context.waitForEvent("serviceworker", { timeout: 15_000 }));
     const extensionId = new URL(worker.url()).host;
     const popupUrl = `chrome-extension://${extensionId}/src/popup/index.html`;
-    const setState = (theme, connected = true) =>
+    const setState = (connected = true) =>
       worker.evaluate(
         async ({ theme, connected, model }) => {
           await chrome.storage.local.clear();
@@ -197,7 +191,7 @@ async function main() {
             },
           });
         },
-        { theme, connected, model: MODELS[0].id },
+        { theme: "dark", connected, model: MODELS[0].id },
       );
     /** Capture until two consecutive frames match, so late paints never reach the file. */
     const settled = async (subject, options) => {
@@ -226,64 +220,44 @@ async function main() {
       console.log(`captured ${name}`);
     };
 
-    for (const theme of ["dark", "light"]) {
-      await setState(theme);
+    // Demos are dark only: the README, the site and the store show the dark theme.
+    await setState();
 
-      const page = await context.newPage();
-      await page.goto(`${origin}/editor.html`);
-      await page.locator("#editor").fill(DRAFT);
-      await page.locator("#editor").focus();
-      const root = page.locator("localix-grammar-root");
-      await root.locator(".trigger").click();
-      await root.locator(".corrected-preview ins").first().waitFor();
-      await shoot(
-        page,
-        `overlay-${theme}`,
-        theme === "dark" ? { store: "01-review-in-place" } : {},
-      );
-      await page.close();
+    const page = await context.newPage();
+    await page.goto(`${origin}/editor.html`);
+    await page.locator("#editor").fill(DRAFT);
+    await page.locator("#editor").focus();
+    const root = page.locator("localix-grammar-root");
+    await root.locator(".trigger").click();
+    await root.locator(".corrected-preview ins").first().waitFor();
+    await shoot(page, "overlay-dark", { store: "01-review-in-place" });
+    await page.close();
 
-      const popup = await context.newPage();
-      await popup.goto(popupUrl);
-      await stage(popup);
-      await popup.locator("#quickCheckInput").fill(QUICK_DRAFT);
-      await popup.locator("#quickCheckButton").click();
-      await popup.locator("#quickCheckDiff ins").first().waitFor();
-      await shoot(
-        popup,
-        `popup-check-${theme}`,
-        theme === "dark" ? { store: "02-check-any-text" } : {},
-      );
+    const popup = await context.newPage();
+    await popup.goto(popupUrl);
+    await stage(popup);
+    await popup.locator("#quickCheckInput").fill(QUICK_DRAFT);
+    await popup.locator("#quickCheckButton").click();
+    await popup.locator("#quickCheckDiff ins").first().waitFor();
+    await shoot(popup, "popup-check-dark", { store: "02-check-any-text" });
 
-      await popup.locator("#settingsTab").click();
-      await popup.getByText("OpenRouter connected").waitFor();
-      await shoot(
-        popup,
-        `popup-settings-${theme}`,
-        theme === "dark" ? { store: "03-settings" } : {},
-      );
+    await popup.locator("#settingsTab").click();
+    await popup.getByText("OpenRouter connected").waitFor();
+    await shoot(popup, "popup-settings-dark", { store: "03-settings" });
 
-      await popup.locator("#modelButton").click();
-      await popup.locator(".model-item").first().waitFor();
-      await shoot(
-        popup,
-        `popup-models-${theme}`,
-        theme === "dark" ? { store: "04-choose-your-model" } : {},
-      );
-      await popup.close();
+    await popup.locator("#modelButton").click();
+    await popup.locator(".model-item").first().waitFor();
+    await shoot(popup, "popup-models-dark", { store: "04-choose-your-model" });
+    await popup.close();
 
-      await setState(theme, false);
-      const connect = await context.newPage();
-      await connect.goto(popupUrl);
-      await stage(connect);
-      await connect.getByRole("button", { name: "Continue with OpenRouter" }).waitFor();
-      await shoot(
-        connect,
-        `popup-connect-${theme}`,
-        theme === "dark" ? { store: "05-connect-openrouter" } : {},
-      );
-      await connect.close();
-    }
+    await setState(false);
+    const connect = await context.newPage();
+    await connect.goto(popupUrl);
+    await stage(connect);
+    await connect.getByRole("button", { name: "Continue with OpenRouter" }).waitFor();
+    await shoot(connect, "popup-connect-dark", { store: "05-connect-openrouter" });
+    await connect.close();
+
     await zipStoreScreenshots();
   } finally {
     await context.close();

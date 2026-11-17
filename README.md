@@ -35,10 +35,7 @@
 </p>
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/overlay-dark.png">
-    <img src="docs/assets/overlay-light.png" width="880" alt="A draft in a web editor with the Localix Grammar panel beside it: removed words struck through in red, corrected words in green, and one button to apply every change">
-  </picture>
+  <img src="docs/assets/overlay-dark.png" width="880" alt="A draft in a web editor with the Localix Grammar panel beside it: removed words struck through in red, corrected words in green, and one button to apply every change">
 </p>
 
 Localix Grammar is one request per check: the text goes to the model with a short proofreading prompt, the model returns the corrected text, and the extension derives every suggestion itself by comparing the two. The model never names offsets, so a suggestion cannot point at the wrong place. Three ways to use it:
@@ -52,18 +49,9 @@ Localix Grammar is one request per check: the text goes to the model with a shor
 It works in text fields and `contenteditable` editors, and stays out of passwords, one-time codes, payment and identity fields, read-only controls and spreadsheet cells. Checks pause per site or everywhere. The interface follows the system theme, or stays light or dark.
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/popup-check-dark.png">
-    <img src="docs/assets/popup-check-light.png" width="32%" alt="The popup checking pasted text and showing its corrections as tracked changes">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/popup-models-dark.png">
-    <img src="docs/assets/popup-models-light.png" width="32%" alt="The searchable OpenRouter model list with prices">
-  </picture>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/popup-settings-dark.png">
-    <img src="docs/assets/popup-settings-light.png" width="32%" alt="Settings: the connected account, automatic checks, per-site pause and theme">
-  </picture>
+  <img src="docs/assets/popup-check-dark.png" width="32%" alt="The popup checking pasted text and showing its corrections as tracked changes">
+  <img src="docs/assets/popup-models-dark.png" width="32%" alt="The searchable OpenRouter model list with prices">
+  <img src="docs/assets/popup-settings-dark.png" width="32%" alt="Settings: the connected account, automatic checks, per-site pause and theme">
 </p>
 
 ## Try it

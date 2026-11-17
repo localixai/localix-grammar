@@ -18,7 +18,7 @@ npm run check        # the layers, the types, the build, the docs' standard
 | --- | --- | --- |
 | `content/` | the site | `site.ts` (name, address, the install command), `landing.ts` (the landing's words and pictures), `docs/` (the pages and `nav.ts`), `theme.css` |
 | `public/` | the site | the icons, the link preview (`og.png`, drawn from `og-card.html`), `llms.txt`, `robots.txt`, `_redirects` |
-| `public/shots` | the product | a link to `docs/assets/`: the screenshots `npm run screenshots` captures, in light and dark |
+| `public/shots` | the product | a link to `docs/assets/`: the screenshots `npm run screenshots` captures, dark only |
 | `src/`, `scripts/`, the configs | the template | change one only where the site cannot say it in `content/` |
 
 ## What differs from a site cloned from the template
