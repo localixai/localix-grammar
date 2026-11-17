@@ -55,6 +55,8 @@ const site: SiteConfig = {
     notice: 'We count visits with Google Analytics, only with your yes, to see which pages help.',
     privacy: 'https://localix.ai/privacy',
   },
+  // IndexNow: the lab's one key, on every site (lab-seo indexnow announces their pages).
+  indexnow: '11254c49281269eef603b4537b75fb4c',
   llms: '> Localix Grammar is an open source Chrome extension that proofreads text in web editors with a model the user picks on OpenRouter: it fixes spelling, grammar and punctuation, shows each change as a tracked edit, and applies them in one click.',
 };
 
