@@ -5,7 +5,7 @@ import type { SiteConfig } from '@/shared/config';
 // way in is the repository's own: build it from source and load it unpacked.
 const GITHUB = 'https://github.com/localixai/localix-grammar';
 const DESCRIPTION =
-  'Localix Grammar fixes spelling, grammar and punctuation in the editor you are already typing in, shows every change as a tracked edit, and applies them in one click. Your key stays in the extension; your text goes only to the OpenRouter model you chose.';
+  'Fixes spelling, grammar and punctuation in the editor you are typing in, as tracked edits you apply in one click, on the OpenRouter model you choose.';
 
 const site: SiteConfig = {
   name: 'Localix Grammar',
