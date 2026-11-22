@@ -51,11 +51,14 @@ const json = (body) => ({
   body: JSON.stringify(body),
 });
 
-async function serveFixtures() {
+/** Serves the dark page the overlay is captured on. */
+async function serveStage() {
   const server = createServer(async (request, response) => {
     try {
       const name = new URL(request.url ?? "/", "http://localhost").pathname.replace(/^\/+/u, "");
-      const file = await readFile(join(resolve("tests/fixtures"), name.replace(/\.\./gu, "")));
+      const file = await readFile(
+        join(resolve("scripts/screenshot-stage"), name.replace(/\.\./gu, "")),
+      );
       response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(file);
     } catch {
       response.writeHead(404).end();
@@ -158,7 +161,7 @@ async function zipStoreScreenshots() {
 async function main() {
   await mkdir(README_DIR, { recursive: true });
   await mkdir(STORE_DIR, { recursive: true });
-  const { server, origin } = await serveFixtures();
+  const { server, origin } = await serveStage();
   const profile = await mkdtemp(join(tmpdir(), "localix-grammar-shots-"));
   const extension = resolve("dist");
   const context = await chromium.launchPersistentContext(profile, {
@@ -205,14 +208,16 @@ async function main() {
       return previous;
     };
     /** README images are 2× PNG; store images must be exactly 1280×800. */
-    const shoot = async (page, name, { store } = {}) => {
+    const shoot = async (page, name, { store, readme = true } = {}) => {
       const popup = name.startsWith("popup");
       if (popup) await fit(page);
       // Move the pointer away so no control is captured in its hover state.
       await page.mouse.move(40, 760);
       // The README shows the popup alone; the store needs it on a full-bleed stage.
       const subject = popup ? page.locator(".shell") : page;
-      await writeFile(join(README_DIR, `${name}.png`), await settled(subject, { type: "png" }));
+      if (readme) {
+        await writeFile(join(README_DIR, `${name}.png`), await settled(subject, { type: "png" }));
+      }
       if (store) {
         const image = await settled(page, { type: "jpeg", quality: 92, scale: "css" });
         await writeFile(join(STORE_DIR, `${store}.jpg`), image);
@@ -223,15 +228,26 @@ async function main() {
     // Demos are dark only: the README, the site and the store show the dark theme.
     await setState();
 
-    const page = await context.newPage();
-    await page.goto(`${origin}/editor.html`);
-    await page.locator("#editor").fill(DRAFT);
-    await page.locator("#editor").focus();
-    const root = page.locator("localix-grammar-root");
-    await root.locator(".trigger").click();
-    await root.locator(".corrected-preview ins").first().waitFor();
-    await shoot(page, "overlay-dark", { store: "01-review-in-place" });
-    await page.close();
+    /** The overlay open on the stage page, in a window of the given size. */
+    const reviewInPlace = async (viewport) => {
+      const page = await context.newPage();
+      await page.setViewportSize(viewport);
+      await page.goto(`${origin}/compose.html`);
+      await page.locator("#editor").fill(DRAFT);
+      await page.locator("#editor").focus();
+      const root = page.locator("localix-grammar-root");
+      await root.locator(".trigger").click();
+      await root.locator(".corrected-preview ins").first().waitFor();
+      return page;
+    };
+    // The store wants 1280×800. The README and the site show the picture at about half that,
+    // so theirs is taken in a smaller window, where the panel's text stays readable.
+    const storePage = await reviewInPlace(VIEWPORT);
+    await shoot(storePage, "overlay-dark", { store: "01-review-in-place", readme: false });
+    await storePage.close();
+    const readmePage = await reviewInPlace({ width: 1000, height: 625 });
+    await shoot(readmePage, "overlay-dark");
+    await readmePage.close();
 
     const popup = await context.newPage();
     await popup.goto(popupUrl);
