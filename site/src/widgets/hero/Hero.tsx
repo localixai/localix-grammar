@@ -2,17 +2,18 @@ import { Film } from '@/features/film';
 import { InstallCommand } from '@/features/install-command';
 import { LANDING, SITE } from '@/shared/config';
 import { rich } from '@/shared/lib/rich';
-import { Picture } from '@/shared/ui';
+import { Action, Picture } from '@/shared/ui';
 import './Hero.css';
 
 /** The landing, one screen: what the product is on the left, a real run of it (or a picture of
  *  it) on the right. */
 export function Hero() {
-  const { title, lede, under, film, shot } = LANDING.hero;
+  const { title, lede, links, under, film, shot } = LANDING.hero;
   return (
     <section className="hero wrap">
       <div className="hero-copy">
         <h1>
+          {title.before && <>{title.before} </>}
           {title.chip && (
             <>
               <span className="hero-lead">
@@ -24,7 +25,17 @@ export function Hero() {
           {title.rest}
         </h1>
         <p className="lede">{rich(lede)}</p>
-        <InstallCommand tabs={SITE.install} />
+        {links?.length ? (
+          <p className="hero-links">
+            {links.map((link, at) => (
+              <Action key={link.href} href={link.href} filled={at === 0}>
+                {link.label}
+              </Action>
+            ))}
+          </p>
+        ) : (
+          <InstallCommand tabs={SITE.install} />
+        )}
         <p className="hero-under">{rich(under)}</p>
       </div>
       {shot ? (

@@ -34,6 +34,12 @@
   line-height: 1.55;
   text-wrap: pretty;
 }
+.hero-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: clamp(1.75rem, 2.6vw, 3rem) 0 0;
+}
 .hero-under {
   margin: 1rem 0 0;
   color: var(--muted);
@@ -75,6 +81,7 @@
 
 /* The headline and the lede are there at the first paint; what follows them rises into place. */
 .hero .install-box,
+.hero-links,
 .hero-under,
 .hero-demo {
   animation: rise 600ms var(--ease-out) both;
