@@ -6,6 +6,7 @@ import type { Block, Card, LandingContent, Media, Shot } from '@/shared/config';
 // so it always shows the extension's dark theme.
 const DOCS = '/docs';
 const GITHUB = 'https://github.com/localixai/localix-grammar';
+const STORE = 'https://chromewebstore.google.com/detail/localix-grammar/jjknmlcmaipahifkabacpoppicimkfcj';
 
 const terminal = (blocks: Block[], label: string): Media => ({ kind: 'terminal', blocks, label });
 const shot = (name: string, width: number, height: number, alt: string): Shot => ({
@@ -18,8 +19,8 @@ const image = (picture: Shot): Media => ({ kind: 'image', ...picture });
 
 const OVERLAY = shot(
   'overlay',
-  2560,
-  1600,
+  2000,
+  1250,
   'A draft in a web editor with the Localix Grammar panel beside it: removed words struck through in red, corrected words in green, and one button to apply every change',
 );
 
@@ -97,7 +98,11 @@ const landing: LandingContent = {
   hero: {
     title: { rest: 'A precise, privacy-aware proofreader for Chrome' },
     lede: 'It fixes spelling, grammar and punctuation in the editor you are already typing in, shows every change as a tracked edit, and applies them in one click. On any OpenRouter model, with your own key.',
-    under: 'Build it, then load `dist/` unpacked in `chrome://extensions`. Needs Node.js 22.19 and Chrome 127 or later. [Install guide](/docs/getting-started)',
+    links: [
+      { label: 'Add to Chrome', href: STORE },
+      { label: 'Source on GitHub', href: GITHUB },
+    ],
+    under: 'Free, from the Chrome Web Store. Needs Chrome 127 or later. [Install guide](/docs/getting-started)',
     shot: OVERLAY,
   },
   loop: {
@@ -107,14 +112,14 @@ const landing: LandingContent = {
   },
   docs: { title: 'Documentation' },
   closing: {
-    title: 'Install from source',
+    title: 'Install it',
     aside: 'Free · MIT license',
     steps: [
-      { title: 'Build it', text: 'With Node.js 22.19 or later: clone the repository, then `npm ci --ignore-scripts` and `npm run build`. The extension is in `dist/`.' },
-      { title: 'Load it', text: 'Open `chrome://extensions`, turn on Developer mode, choose Load unpacked and select `dist/`.' },
+      { title: 'Add it', text: `Open its [Chrome Web Store page](${STORE}) and choose Add to Chrome. Or build it from source, as the install guide shows.` },
       { title: 'Connect', text: 'Open the popup and choose “Continue with OpenRouter”, or paste an API key. Pick a model, and type in any editor.' },
     ],
     links: [
+      { label: 'Chrome Web Store', href: STORE },
       { label: 'Install guide', href: `${DOCS}/getting-started` },
       { label: 'Source on GitHub', href: GITHUB },
     ],

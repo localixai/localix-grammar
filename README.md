@@ -18,6 +18,7 @@
 </p>
 
 <p align="center">
+  <a href="https://chromewebstore.google.com/detail/localix-grammar/jjknmlcmaipahifkabacpoppicimkfcj"><img src="https://img.shields.io/chrome-web-store/v/jjknmlcmaipahifkabacpoppicimkfcj?color=black&label=Chrome%20Web%20Store&logo=googlechrome&logoColor=white" alt="Chrome Web Store"></a>
   <a href="https://github.com/localixai/localix-grammar/actions/workflows/ci.yml"><img src="https://github.com/localixai/localix-grammar/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
   <img src="https://img.shields.io/github/package-json/v/localixai/localix-grammar?color=black&label=version" alt="Version">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-black" alt="MIT License"></a>
@@ -27,6 +28,7 @@
 </p>
 
 <p align="center">
+  <a href="https://chromewebstore.google.com/detail/localix-grammar/jjknmlcmaipahifkabacpoppicimkfcj">Chrome Web Store</a> ·
   <a href="#try-it">Try it</a> ·
   <a href="#how-a-check-works">How it works</a> ·
   <a href="docs/user-guide.md">User guide</a> ·
@@ -56,7 +58,11 @@ It works in text fields and `contenteditable` editors, and stays out of password
 
 ## Try it
 
-Requires Node.js 22.19 or later and Chrome or Chromium 127 or later.
+Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/localix-grammar/jjknmlcmaipahifkabacpoppicimkfcj), then open the popup and connect: **Continue with OpenRouter** signs in through OAuth, or paste an API key. Pick a model, and type in any editor. It needs Chrome or Chromium 127 or later.
+
+### From source
+
+Requires Node.js 22.19 or later.
 
 ```bash
 git clone https://github.com/localixai/localix-grammar && cd localix-grammar
@@ -64,7 +70,7 @@ npm ci --ignore-scripts
 npm run build                                # the unpacked extension, in dist/
 ```
 
-Open `chrome://extensions`, turn on **Developer mode**, choose **Load unpacked** and select `dist/`. Then open the popup and connect: **Continue with OpenRouter** signs in through OAuth, or paste an API key. Pick a model, and type in any editor.
+Open `chrome://extensions`, turn on **Developer mode**, choose **Load unpacked** and select `dist/`, then connect in the popup as above.
 
 ## How a check works
 

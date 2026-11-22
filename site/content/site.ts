@@ -1,9 +1,10 @@
 import type { SiteConfig } from '@/shared/config';
 
 // What the site knows about itself: the product's name, where the site is published, the
-// repository, how the extension is installed. There is no Chrome Web Store listing yet, so the
-// way in is the repository's own: build it from source and load it unpacked.
+// repository, how the extension is installed. The way in is the Chrome Web Store; the command box
+// holds the other way, building it from source and loading it unpacked.
 const GITHUB = 'https://github.com/localixai/localix-grammar';
+const STORE = 'https://chromewebstore.google.com/detail/localix-grammar/jjknmlcmaipahifkabacpoppicimkfcj';
 const DESCRIPTION =
   'Fixes spelling, grammar and punctuation in the editor you are typing in, as tracked edits you apply in one click, on the OpenRouter model you choose.';
 
@@ -30,7 +31,7 @@ const site: SiteConfig = {
       { label: 'Privacy', href: '/docs/privacy' },
       { label: 'GitHub', href: GITHUB },
     ],
-    action: { label: 'Install', href: '/#start' },
+    action: { label: 'Add to Chrome', href: STORE },
   },
   maker: { label: 'Localix Lab', href: 'https://localix.ai' },
   footer: {

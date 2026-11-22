@@ -1,15 +1,21 @@
 # Getting started
 
-Localix Grammar is not in the Chrome Web Store yet: you build it from its repository and load it
-into Chrome as an unpacked extension. It takes a few minutes, and then an OpenRouter account.
+Install Localix Grammar from the [Chrome Web Store](https://chromewebstore.google.com/detail/localix-grammar/jjknmlcmaipahifkabacpoppicimkfcj), then connect an
+OpenRouter account. To run your own build instead, build it from the repository and load it
+unpacked.
 
 ## What you need
 
-- Node.js 22.19 or later, to build it.
 - Chrome or Chromium 127 or later.
 - An OpenRouter account. Each check is a request to the model you pick, at its OpenRouter price.
+- Node.js 22.19 or later, only to build it from source.
 
-## Build and load it
+## From the Chrome Web Store
+
+Open the [Localix Grammar page](https://chromewebstore.google.com/detail/localix-grammar/jjknmlcmaipahifkabacpoppicimkfcj), choose **Add to Chrome**, and pin it from the
+puzzle-piece menu if you want its button in the toolbar. Chrome updates it on its own.
+
+## From source
 
 ```bash
 git clone https://github.com/localixai/localix-grammar && cd localix-grammar
